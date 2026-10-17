@@ -11,29 +11,128 @@ fix a builder bug, or contribute upstream.
    / `g6_blobs`.
 2. **Never commit** `.staging/`, course homework `.lgp`, datasets, secrets, or
    personal absolute paths.
-3. **One PR = one concern.** Prefer a single ROADMAP item or a focused bugfix.
+3. **One PR = one concern.** Prefer a single missing tool or a focused bug fix.
 4. **Maintainer merges.** Always open a Pull Request / Merge Request for review;
    do not push directly to `main` unless the user explicitly owns the repo and
    asks you to.
 
-## When a tool is missing
+---
 
-Typical gaps are listed in [ROADMAP.md](ROADMAP.md). Workflow:
+## MCP tools already implemented
 
-1. Confirm the gap (user request or ROADMAP).
+Do **not** reinvent these. They live in `server.py` → `package_session.py`.
+
+| Tool | Purpose |
+|------|---------|
+| `list_loginom_components` | Keys for `add_node` (imports, transforms, G6 palette, …) |
+| `list_visualizers` | Keys for `add_visualizer` (optionally filter by component) |
+| `create_package` | New in-memory session (name, output_dir, module_display) |
+| `add_node` | Virgin workflow node (`component`, layout, `file_name` for imports) |
+| `configure_node` | ColumnDefs + engines: filter, calculator, sort, outliers ordered flag, join, import_settings, grouping aggs, duplicates in/out |
+| `link_nodes` | Wire ports (`data` / `else` / join `main`·`joined`, …) |
+| `add_visualizer` | Attach **virgin** ModelView (empty Series / ViewColumns / Dimensions) |
+| `rename_node` | Rename workflow node or visualizer DisplayName |
+| `get_package` | Dump current session (nodes, links, visualizers) |
+| `inspect_lgp` | Read an existing `.lgp` from disk (no session) |
+| `save_package` | Write session → `.lgp` |
+| `verify_package` | ZIP/XML/BGB checks; optional Loginom UI on Windows |
+
+**Resources:** `loginom://docs/visualizers`, `loginom://docs/agents`,
+`loginom://docs/contributing`, `loginom://docs/roadmap`.
+
+**Library (not MCP tools yet):** `vendor/viz_configure.py` (patch configured
+table/chart/quality/duplicates into a saved `.lgp`), `tools/inspect_viz.py` CLI.
+
+**`configure_node` covers today:** columns / inputs / outputs / groups / values,
+`filter_items`, `expressions`, `sort_columns`, `ordered_sample`, `join_type` +
+`join_keys`, `import_settings` (text/excel). Many palette nodes can be *added*
+but have little or no dedicated engine configure beyond ColumnDefs.
+
+---
+
+## Missing tools — start here
+
+Implement **one** of these per PR. Highest value first.
+
+### 1. `configure_visualizer` (highest priority)
+
+**Why:** `add_visualizer` only creates virgin views. Agents still hand-patch
+`Unit.xml` + `Unit.bin` after `save_package`.
+
+**Should support (phase 1):**
+
+- `table` / `duplicates_view` → `ViewColumns` (+ optional `Sorting`)
+- `chart` → `lkLabels` FieldName + `Series` (ctColumns / …)
+- `quality` → indicator column configs
+
+**Phase 2:** `cube` (Dimensions + Summaries + optional Charts), `statistics`.
+
+**Reuse:** `vendor/viz_configure.py` (`table_job`, `chart_job`, `quality_job`,
+`duplicates_job`, `patch_package`). Expose session-aware API in
+`package_session.py` + `@mcp.tool()` in `server.py`. Prefer configuring
+**before** final save when possible; if patching a saved file, document that
+another `save_package` in the same session must not wipe views.
+
+**Docs to update:** `VISUALIZERS.md`, README, this file (move to “implemented”).
+
+### 2. `inspect_source_schema` (or `peek_import_fields`)
+
+**Why:** Wrong field names (`Summ` vs `Summa_pokupki`, LGD internal vs Loginom
+DisplayName transliteration) cause «ошибка входного порта» on the first
+downstream nodes.
+
+**Goal:** Given a path to `.lgd` / CSV / existing import node, return the field
+`Name` / `DisplayName` / `DataType` list as Loginom will expose them so
+`configure_node` can bind `InputColumnInfoName` correctly.
+
+### 3. Stronger import → ColumnDefs binding helpers
+
+**Why:** Same port-error class of bugs. May be part of (2) or a
+`sync_columns_from_upstream` tool / `configure_node` enhancement that copies
+types from the linked import metadata.
+
+### 4. Visualizer extras (after #1)
+
+- Table `SortingColumns` / Filtering for top-N without Sort nodes
+- Cube configure (see VISUALIZERS.md)
+- Special views: `cluster_profiles`, `roc`, `coarse_classes`, `data_tree`
+  (today: listable / attachable as virgin only)
+
+### 5. Deeper `configure_node` for under-configured components
+
+Many keys from `list_loginom_components` are virgin add only. Useful next
+engines (pick one per PR, mirror a real `.lgp`):
+
+- `imputation`, `smoothing`, `quantize`, `sampling`, `replace`
+- `export_*` settings
+- `loop` / `condition` / `submodel` / `reference_node`
+- Modeling nodes (`cluster`, `lin_regression`, `nn_*`, …) — large surface
+
+### 6. Session / package UX (nice to have)
+
+- `remove_node` / `unlink_nodes` / `clear_package`
+- `configure_visualizer` apply to **saved** `.lgp` path without full session
+- CI golden fixtures for `verify_package` without Loginom UI
+
+Also tracked in [ROADMAP.md](ROADMAP.md) — keep both lists in sync when you ship.
+
+---
+
+## When you implement a missing tool
+
+1. Confirm the gap (user request or list above).
 2. Search existing code (`server.py`, `package_session.py`, `vendor/`).
-3. Implement library support first; expose a thin `@mcp.tool()` in `server.py`.
-4. Update docs (`README.md`, `VISUALIZERS.md` if visualizers, ROADMAP checkmark).
-5. Smoke-test import + a minimal package build if feasible.
-6. **Commit on a feature branch** and **open a PR** (see below).
+3. Implement library support first; thin `@mcp.tool()` wrapper in `server.py`.
+4. Update `README.md` (tools table), this file (move item to “implemented”),
+   `ROADMAP.md`, and `VISUALIZERS.md` if relevant.
+5. Smoke-test: `python -c "import server"` (+ build/patch sample if feasible).
+6. **Feature branch → commit → open PR** (below). Do not push to `main`.
 
-### Visualizers
+### Visualizers (until `configure_visualizer` lands)
 
-`add_visualizer` creates virgin views only. Until `configure_visualizer` exists:
-
-- Prefer extending `vendor/viz_configure.py` (`table_job`, `chart_job`, …).
+- Prefer extending `vendor/viz_configure.py`.
 - Keep XML Engine and BIN Engine replacements in sync.
-- Document that agents must not call `save_package` again after a post-save patch.
+- Never call `save_package` again after a post-save patch in the same session.
 
 Resource: `loginom://docs/visualizers` (= `VISUALIZERS.md`).
 
@@ -60,12 +159,13 @@ EOF
 git push -u origin HEAD
 gh pr create --title "feat: add configure_visualizer MCP tool" --body "$(cat <<'EOF'
 ## Summary
-- What gap from ROADMAP this closes
+- Which missing tool from AGENTS.md this adds
 - Brief approach
 
 ## Test plan
 - [ ] `python -c "import server"`
-- [ ] Build/patch a sample .lgp and run `python tools/inspect_viz.py …`
+- [ ] Exercise the new tool / patch sample .lgp
+- [ ] `python tools/inspect_viz.py …` if visualizers
 - [ ] Maintainer: open package in Loginom (optional)
 
 EOF
@@ -76,7 +176,7 @@ Return the PR URL to the user. Stop there — maintainer reviews and merges.
 
 If `gh` is unavailable, push the branch and give the compare URL:
 
-`https://github.com/<owner>/loginom-mcp/compare/main...feat/short-topic`
+`https://github.com/Veselchak-git/loginom-mcp/compare/main...feat/short-topic`
 
 ## MCP server `instructions` contract
 
@@ -84,24 +184,23 @@ If `gh` is unavailable, push the branch and give the compare URL:
 
 - Canonical workflow: create → add → configure → link → visualizer → save → verify
 - Virgin visualizers + link to `loginom://docs/visualizers`
-- Pointer to contribute missing tools via PR (`AGENTS.md` / `CONTRIBUTING.md`)
+- Missing tools → implement + PR (`AGENTS.md` / `CONTRIBUTING.md`)
 
-When you change contribution policy, update **both** `_INSTRUCTIONS` and this file.
+When you change contribution policy or the implemented/missing tool lists,
+update **`_INSTRUCTIONS`**, **this file**, and **README**.
 
 ## Private vs public copies
 
 | Location | Purpose |
 |----------|---------|
 | This repo (`loginom-mcp`) | Open source — tools, docs, PRs |
-| Maintainer’s private `Data Analysis/loginom_mcp` (if any) | Local `.staging`, course packages, experiments — **not** for PRs |
-
-If you find course-specific scripts or absolute university paths, leave them out
-of commits to this repository.
+| Maintainer’s private `Data Analysis/loginom_mcp` (if any) | Local `.staging`, course packages — **not** for PRs |
 
 ## Quick orientation commands
 
 ```bash
-rg -n "def configure_|@mcp.tool" server.py package_session.py
+rg -n "@mcp.tool" server.py
+rg -n "def configure_|def add_" package_session.py
 rg -n "viz_configure|ViewColumns|TBGChartView" vendor/
 python tools/inspect_viz.py path/to/package.lgp
 ```

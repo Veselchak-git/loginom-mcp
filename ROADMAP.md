@@ -1,33 +1,36 @@
 # Roadmap — gaps agents can close
 
-Priority order for new MCP tools / library work. Pick an item, implement on a
-branch, open a PR (see [CONTRIBUTING.md](CONTRIBUTING.md) / [AGENTS.md](AGENTS.md)).
+Canonical “what to build next” for contributors. For agent-facing detail and
+the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md).
 
 ## High priority
 
-| Gap | Why | Likely touch points |
-|-----|-----|---------------------|
-| `configure_visualizer` MCP tool | `add_visualizer` only creates virgin views; agents still patch ZIP XML+BIN by hand | `visualizers.py`, `vendor/viz_configure.py`, `server.py`, `package_session.py` |
-| Reliable column binding after `import_native` / `import_*` | Downstream nodes fail with «ошибка входного порта» when `Name` / `InputColumnInfoName` / types do not match Loginom’s exposed schema | `column_config.py`, `package_session.configure_node`, docs in README |
-| Schema introspection for `.lgd` / activated import | Agents guess field names (`Summ` vs `Summa_pokupki`) | new tool e.g. `inspect_source_schema`, optionally Loginom-assisted |
+| Gap | Status | Notes |
+|-----|--------|--------|
+| `configure_visualizer` | **Missing tool** | Phase 1: table / chart / quality / duplicates_view via `vendor/viz_configure.py` |
+| `inspect_source_schema` | **Missing tool** | Field Name/DisplayName/DataType as Loginom exposes them (esp. `.lgd`) |
+| Import → ColumnDefs binding | **Partial** | `configure_node` exists; port errors when names/types mismatch upstream |
 
 ## Medium priority
 
 | Gap | Notes |
 |-----|--------|
-| `configure_visualizer` for **cube** (dimensions + summaries + optional Charts) | Extend `viz_configure.py` beyond table/chart/quality/duplicates |
-| Sorting / filtering inside table visualizer (`SortingColumns`) | Top-N without extra Sort nodes — see VISUALIZERS.md |
-| More components in `list_loginom_components` | Mirror virgin XML/BGB from real Loginom packages into `vendor/g6_blobs` |
-| Cross-platform `verify_package` without Loginom UI | Structure checks already work; expand golden fixtures |
+| Cube (+ sorting in table visualizer) | After `configure_visualizer` phase 1 |
+| Special visualizers configure | `cluster_profiles`, `roc`, `coarse_classes`, `data_tree` |
+| Deeper `configure_node` for virgin-only components | imputation, exports, loop/submodel, modeling nodes — one engine per PR |
+| More / fresher `g6_blobs` | Mirror from real Loginom packages |
 
-## Lower priority / research
+## Lower priority
 
-- Submodel / loop / reference node full configure surface
-- Export/import of reusable node presets
-- Automated regression: build sample `.lgp` → `inspect_viz` / `verify_package` in CI
+- `remove_node` / `unlink_nodes` / `clear_package`
+- CI golden `.lgp` fixtures for `verify_package` without UI
+- Node preset export/import
 
-## Done-enough (do not reinvent)
+## Done (do not reinvent)
 
-- Package session: create / add_node / configure_node / link / save
-- Virgin visualizers + `VISUALIZERS.md` + `vendor/viz_configure.py` helpers
-- `tools/inspect_viz.py` CLI for virgin vs configured views
+MCP tools: `list_loginom_components`, `list_visualizers`, `create_package`,
+`add_node`, `configure_node`, `link_nodes`, `add_visualizer`, `rename_node`,
+`get_package`, `inspect_lgp`, `save_package`, `verify_package`.
+
+Libraries: virgin visualizers + `VISUALIZERS.md` + `vendor/viz_configure.py` +
+`tools/inspect_viz.py`.

@@ -208,22 +208,37 @@ python3 -m pip install -r requirements.txt
 | `LOGINOM_MCP_OUT` | Каталог по умолчанию для `create_package`, если не задан `output_dir` (по умолчанию: `loginom_mcp/out`) |
 | `LOGINOM_EXE` | Необязательный путь к бинарнику Loginom для UI-проверки в Windows |
 
-## Что внутри
+## MCP tools (реализовано)
 
-- Инструменты MCP: `create_package`, `add_node`, `configure_node`, `link_nodes`, `add_visualizer`, `save_package`, `inspect_lgp`, `verify_package`, …
-- `vendor/` — сборщики BGB/XML + `viz_configure.py` (настроенные visualizers после save)
-- `tools/inspect_viz.py` — CLI: virgin vs configured views
-- `VISUALIZERS.md` — **настройка** диаграмм / кубов / таблиц после `add_visualizer` (XML + BIN). MCP resource `loginom://docs/visualizers`
-- `AGENTS.md` / `CONTRIBUTING.md` / `ROADMAP.md` — вклад и пробелы API
+| Tool | Назначение |
+|------|------------|
+| `list_loginom_components` | Ключи компонентов для `add_node` |
+| `list_visualizers` | Ключи визуализаторов для `add_visualizer` |
+| `create_package` | Новая in-memory сессия пакета |
+| `add_node` | Добавить virgin-узел на холст |
+| `configure_node` | ColumnDefs + filter / calculator / sort / join / import / outliers / grouping |
+| `link_nodes` | Связать порты (`data`, `else`, …) |
+| `add_visualizer` | Повесить **virgin**-визуализатор (пустые Series / ViewColumns / Dimensions) |
+| `rename_node` | Переименовать узел или визуализатор |
+| `get_package` | Состояние текущей сессии |
+| `inspect_lgp` | Разобрать существующий `.lgp` с диска |
+| `save_package` | Записать `.lgp` |
+| `verify_package` | Проверка ZIP/XML/BGB (+ опционально UI Loginom на Windows) |
+
+**Resources:** `loginom://docs/visualizers`, `loginom://docs/agents`, `loginom://docs/contributing`, `loginom://docs/roadmap`.
+
+**Ещё в репозитории (не MCP-tools):** `vendor/` (BGB/XML + `viz_configure.py`), `tools/inspect_viz.py`, docs.
+
+Полный список «чего ещё нет» для агентов: **[AGENTS.md](AGENTS.md)** (секция *Missing tools*) и [ROADMAP.md](ROADMAP.md).
 
 ## Визуализаторы
 
 `add_visualizer` вешает на узел только **virgin**-представление (пустые серии/измерения/колонки).  
-Инструмента `configure_visualizer` пока нет.
+Инструмента **`configure_visualizer` пока нет** — это главный gap для контрибьюторов.
 
-Для готового учебного пакета после `save_package` нужно настроить визуализаторы в `.lgp`:
+Для готового пакета после `save_package` нужно настроить визуализаторы в `.lgp`:
 
-1. Править `Unit_0/Unit.xml` и синхронно `Unit_0/Unit.bin` (Loginom читает BIN).
+1. Править `Unit_0/Unit.xml` и синхронно `Unit_0/Unit.bin` (Loginom читает BIN), либо использовать `vendor/viz_configure.py`.
 2. Диаграмма: `lkLabels` + `FieldName`, непустой `<Series>` (`ctColumns` и т.п.).
 3. Куб: `Dimensions` (`cdtRows` / `cdtCols` / `cdtFree`) + факты в `Summaries/Cases`.
 4. Таблица: непустой `<ViewColumns>` с нужными полями.

@@ -32,11 +32,12 @@ Do not call save_package again from the MCP session after that patch — it woul
 overwrite configured views with virgin ones. Recipes: resource loginom://docs/visualizers \
 (VISUALIZERS.md).
 
-CONTRIBUTE — if a needed tool is missing (see ROADMAP.md / loginom://docs/roadmap): \
-implement it in this repo on a feature branch, commit, and open a Pull Request for \
-maintainer review. Do not push to main. Follow AGENTS.md (loginom://docs/agents) and \
-CONTRIBUTING.md (loginom://docs/contributing). Never commit .staging/, course .lgp, \
-datasets, secrets, or personal absolute paths.
+CONTRIBUTE — implemented tools are listed in README / AGENTS.md. Missing tools \
+(start with configure_visualizer, inspect_source_schema): see AGENTS.md \
+«Missing tools» and loginom://docs/agents / loginom://docs/roadmap. Implement on \
+a feature branch, open a Pull Request; do not push to main. Follow CONTRIBUTING.md \
+(loginom://docs/contributing). Never commit .staging/, course .lgp, datasets, \
+secrets, or personal absolute paths.
 """
 
 mcp = MCPServer(
