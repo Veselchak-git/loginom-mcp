@@ -1,0 +1,2 @@
+mcp>=1.2.0
+# Dev machine uses mcp 2.x (MCPServer). If you need FastMCP v1: pin mcp<2

@@ -1,0 +1,16 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="52643c91-4e5c-49b9-9512-ce904e73a654" DisplayName="Выполнение узла" VendorGuid="f2b7b8c5-ac4b-403f-a99e-d64fb4ae0d10" OriginalVendorGuid="f2b7b8c5-ac4b-403f-a99e-d64fb4ae0d10" IsSealedVendor="true">
+				<InputPorts />
+				<OutputPorts />
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="77a933bc-f423-303c-b25f-1caebd2b687e" Name="BaseNode" DisplayName="Базовый узел" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component xsi:type="TBGExecNodeComponent" />
+				<Position Left="176" Top="96" />
+			</Item>
+			

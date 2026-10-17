@@ -1,0 +1,49 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="b4c60367-9169-4038-a818-78a1e9bb300b" DisplayName="Программа" VendorGuid="1ea6e840-6533-423e-b634-3d53dd9ce35e">
+				<InputPorts>
+					<Item Guid="d252e390-f72d-36c4-97fc-60d86186c3c6" Name="Variables" DisplayName="Входные переменные" />
+				</InputPorts>
+				<OutputPorts>
+					<Item Guid="b671426b-642b-3e7c-b9a9-9653573f3199" Name="Variables" DisplayName="Выходные переменные" />
+				</OutputPorts>
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<InputSockets>
+						<Item Guid="d252e390-f72d-36c4-97fc-60d86186c3c6" Name="Variables" DisplayName="Входные переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+						<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+					</InputSockets>
+					<OutputSockets>
+						<Item Guid="b671426b-642b-3e7c-b9a9-9653573f3199" Name="Variables" DisplayName="Выходные переменные">
+							<Socket xsi:type="TBGDerivedVariablesOutputSocket" Virgin="true">
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+					</OutputSockets>
+					<Engine xsi:type="TBGExecCmdEngine" />
+				</Component>
+				<Position Left="320" Top="568" />
+			</Item>
+			

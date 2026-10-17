@@ -1,0 +1,413 @@
+[
+  {
+    "key": "run_node",
+    "title": "Выполнение узла",
+    "vendor": "f2b7b8c5-ac4b-403f-a99e-d64fb4ae0d10",
+    "engine": "Unknown",
+    "category": "control",
+    "inputs": {},
+    "outputs": {},
+    "blob_len": 785
+  },
+  {
+    "key": "submodel",
+    "title": "Подмодель",
+    "vendor": "a38d1b44-ce57-4f4c-9357-2adb8697d6f3",
+    "engine": "TBGModelGenericComponentEngine",
+    "category": "control",
+    "inputs": {},
+    "outputs": {},
+    "blob_len": 3846
+  },
+  {
+    "key": "reference_node",
+    "title": "Узел-ссылка",
+    "vendor": "f92b7fc7-d460-4881-9f20-fb75d6c8451f",
+    "engine": "TBGReferenceNodeComponentEngine",
+    "category": "control",
+    "inputs": {},
+    "outputs": {},
+    "blob_len": 990
+  },
+  {
+    "key": "condition",
+    "title": "Условие",
+    "vendor": "1170d1a2-472b-4edc-9a87-68ff7805f7b6",
+    "engine": "TBGConditionComponentEngine",
+    "category": "control",
+    "inputs": {},
+    "outputs": {},
+    "blob_len": 689
+  },
+  {
+    "key": "loop",
+    "title": "Цикл",
+    "vendor": "9875bc6a-17a2-465f-b37a-7b300ac52324",
+    "engine": "Unknown",
+    "category": "control",
+    "inputs": {},
+    "outputs": {},
+    "blob_len": 760
+  },
+  {
+    "key": "autocorr",
+    "title": "Автокорреляция",
+    "vendor": "b1951e4d-5139-454b-930f-942b1c2e64b3",
+    "engine": "TBGAutoCorrelationEngine",
+    "category": "research",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "DataSource": "4ba0e2c2-69ad-3a32-bbdc-75714efe7a51"
+    },
+    "blob_len": 1638
+  },
+  {
+    "key": "duplicates",
+    "title": "Дубликаты и противоречия",
+    "vendor": "5a630fc3-7f1d-4e74-94d3-89578576dad5",
+    "engine": "TBGDuplicatesEngine",
+    "category": "research",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "DataSource": "4ba0e2c2-69ad-3a32-bbdc-75714efe7a51"
+    },
+    "blob_len": 1651
+  },
+  {
+    "key": "corr_analysis",
+    "title": "Корреляционный анализ",
+    "vendor": "1a0ef37e-bdb3-4cf1-908e-79b9b0763a6d",
+    "engine": "TBGCorrAnalysisEngine",
+    "category": "research",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "DataSource": "4ba0e2c2-69ad-3a32-bbdc-75714efe7a51"
+    },
+    "blob_len": 1660
+  },
+  {
+    "key": "factor_analysis",
+    "title": "Факторный анализ",
+    "vendor": "a026e29f-e2ac-473f-a792-47031a204125",
+    "engine": "TBGFactorAnalysisEngine",
+    "category": "research",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "Factors": "a5c95dba-f032-3202-8c1b-fb2c293cb5d8",
+      "Loadings": "87d1eb64-e7c7-3310-84d8-9172e0c68551"
+    },
+    "blob_len": 1913
+  },
+  {
+    "key": "assoc_rules",
+    "title": "Ассоциативные правила",
+    "vendor": "5596f9c0-30c4-49dc-9b21-21556e2a8c6c",
+    "engine": "TBGAssnRulesEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b",
+      "InputDataSourceSuppl": "024e4642-bc15-39a7-9c2d-f6128a179775"
+    },
+    "outputs": {
+      "Itemsets": "0cad0601-dd8b-3f06-a1a1-5793d9bda0c4",
+      "Rules": "724e53c6-85ad-3e71-941e-35146f815711",
+      "Apply": "edb71a8b-7004-3bcb-9306-b7ddfaab5115"
+    },
+    "blob_len": 2667
+  },
+  {
+    "key": "cluster",
+    "title": "Кластеризация",
+    "vendor": "29c32fa3-f2a0-41b4-a439-6a9a90f8476d",
+    "engine": "TBGClusterizationEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "Clusters": "8b9b1aee-4f1b-3256-9f46-6730111087ce",
+      "Centers": "36b1f744-de0b-3602-b083-429bcaa2fc17"
+    },
+    "blob_len": 2264
+  },
+  {
+    "key": "clope",
+    "title": "Кластеризация транзакций",
+    "vendor": "d412db74-3b02-4dd2-a462-5bf27ebf1b1d",
+    "engine": "TBGClopeEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b",
+      "InputDataSourceSuppl": "024e4642-bc15-39a7-9c2d-f6128a179775"
+    },
+    "outputs": {
+      "Clusters": "8b9b1aee-4f1b-3256-9f46-6730111087ce",
+      "Parameters": "f7ecdcc7-4e51-34d7-8525-10bd77f9dd5b"
+    },
+    "blob_len": 2296
+  },
+  {
+    "key": "lin_regression",
+    "title": "Линейная регрессия",
+    "vendor": "fb5960cc-c381-40c9-bb2f-65e7c72e4b29",
+    "engine": "TBGLinRegressionEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "PredictedData": "c1450f24-33a7-30a5-b26e-44f2cfa7d2c4",
+      "ModelCoefficients": "8983fd58-6c41-38b3-95e8-0322761b7941",
+      "Summary": "5dc21ddc-1e50-38a8-8741-167f4cb00cdb"
+    },
+    "blob_len": 2687
+  },
+  {
+    "key": "log_regression",
+    "title": "Логистическая регрессия",
+    "vendor": "b932b077-1ddb-4d8a-9f3a-514d72b9c094",
+    "engine": "TBGLogRegressionEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "PredictedData": "c1450f24-33a7-30a5-b26e-44f2cfa7d2c4",
+      "ModelCoefficients": "8983fd58-6c41-38b3-95e8-0322761b7941",
+      "Summary": "5dc21ddc-1e50-38a8-8741-167f4cb00cdb"
+    },
+    "blob_len": 2718
+  },
+  {
+    "key": "nn_classify",
+    "title": "Нейросеть (классификация)",
+    "vendor": "70402979-7c84-456a-97b8-083a5de7543c",
+    "engine": "TBGClassifierNeuralNetEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "NeuralNetOutput": "afaa7823-c44b-3e6f-8fb9-d1852069c4f7",
+      "Summary": "5dc21ddc-1e50-38a8-8741-167f4cb00cdb"
+    },
+    "blob_len": 2354
+  },
+  {
+    "key": "nn_regress",
+    "title": "Нейросеть (регрессия)",
+    "vendor": "fa5d493c-b3d9-4023-b23f-c9f18e96470f",
+    "engine": "TBGRegressionNeuralNetEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "NeuralNetOutput": "afaa7823-c44b-3e6f-8fb9-d1852069c4f7",
+      "Summary": "5dc21ddc-1e50-38a8-8741-167f4cb00cdb"
+    },
+    "blob_len": 2346
+  },
+  {
+    "key": "sonn",
+    "title": "Самоорганизующаяся сеть",
+    "vendor": "43091feb-0e50-4c8b-a913-17d59ff1b1aa",
+    "engine": "TBGSONNEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "Clustrs": "82094fac-057d-3f85-b92a-9b9d4d3611a1",
+      "Centers": "36b1f744-de0b-3602-b083-429bcaa2fc17"
+    },
+    "blob_len": 2319
+  },
+  {
+    "key": "arimax",
+    "title": "ARIMAX",
+    "vendor": "92150a53-40b0-456c-a445-4f0c52388883",
+    "engine": "TBGForecastEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "PredictedData": "c1450f24-33a7-30a5-b26e-44f2cfa7d2c4",
+      "ModelCoefficients": "8983fd58-6c41-38b3-95e8-0322761b7941",
+      "Summary": "5dc21ddc-1e50-38a8-8741-167f4cb00cdb"
+    },
+    "blob_len": 2465
+  },
+  {
+    "key": "em_cluster",
+    "title": "EM Кластеризация",
+    "vendor": "c8606a85-1c45-4636-9e92-f1e4d867bc6d",
+    "engine": "TBGEMEngine",
+    "category": "datamining",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "Clusters": "8b9b1aee-4f1b-3256-9f46-6730111087ce",
+      "Centers": "36b1f744-de0b-3602-b083-429bcaa2fc17"
+    },
+    "blob_len": 2255
+  },
+  {
+    "key": "tree_to_table",
+    "title": "Дерево в таблицу",
+    "vendor": "94fef1d2-c326-437c-a8a4-7100dadc89a0",
+    "engine": "TBGTreeToDataEngine",
+    "category": "datatree",
+    "inputs": {
+      "DataTree": "a739e211-c6da-3491-a88d-16770536d7e9"
+    },
+    "outputs": {
+      "DataSource": "4ba0e2c2-69ad-3a32-bbdc-75714efe7a51"
+    },
+    "blob_len": 1430
+  },
+  {
+    "key": "tree_to_json",
+    "title": "Дерево в JSON",
+    "vendor": "8093578d-8f23-4795-aaae-2613547069af",
+    "engine": "TBGTreeToJSONEngine",
+    "category": "datatree",
+    "inputs": {
+      "DataTree": "a739e211-c6da-3491-a88d-16770536d7e9"
+    },
+    "outputs": {
+      "DataSource": "4ba0e2c2-69ad-3a32-bbdc-75714efe7a51"
+    },
+    "blob_len": 1684
+  },
+  {
+    "key": "calc_tree",
+    "title": "Калькулятор (дерево)",
+    "vendor": "4b18b749-fe66-43de-95fb-9334a5a7a7d5",
+    "engine": "TBGCalcTree",
+    "category": "datatree",
+    "inputs": {
+      "DataTree": "a739e211-c6da-3491-a88d-16770536d7e9",
+      "Variables": "d252e390-f72d-36c4-97fc-60d86186c3c6"
+    },
+    "outputs": {
+      "DataTree": "f78f5144-f8a0-30a4-8323-ed7b6402665f"
+    },
+    "blob_len": 2001
+  },
+  {
+    "key": "union_tree",
+    "title": "Объединение (дер.): конкатенация",
+    "vendor": "f3990232-6ff5-409f-aa48-0571f9fe9af1",
+    "engine": "TBGUnionTreeEngine",
+    "category": "datatree",
+    "inputs": {
+      "MainDataTree": "aaf70706-66b9-3814-9970-c9b68a08082a",
+      "JoinedDataTree": "4e43519e-05d2-3c6a-a1ab-1ca9e7d9f24e"
+    },
+    "outputs": {
+      "DataTree": "f78f5144-f8a0-30a4-8323-ed7b6402665f"
+    },
+    "blob_len": 2065
+  },
+  {
+    "key": "join_tree",
+    "title": "Слияние (дерево)",
+    "vendor": "64329eec-dfa9-4a66-8cfe-4be36b6e4f51",
+    "engine": "TBGJoinTreeEngine",
+    "category": "datatree",
+    "inputs": {
+      "MainDataTree": "aaf70706-66b9-3814-9970-c9b68a08082a",
+      "JoinedDataTree": "4e43519e-05d2-3c6a-a1ab-1ca9e7d9f24e"
+    },
+    "outputs": {
+      "DataTree": "f78f5144-f8a0-30a4-8323-ed7b6402665f"
+    },
+    "blob_len": 2035
+  },
+  {
+    "key": "table_to_tree",
+    "title": "Таблица в дерево",
+    "vendor": "e1a84506-f70e-470e-a662-91fa62e23137",
+    "engine": "TBGDataToTreeEngine",
+    "category": "datatree",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "DataTree": "f78f5144-f8a0-30a4-8323-ed7b6402665f"
+    },
+    "blob_len": 1390
+  },
+  {
+    "key": "json_to_tree",
+    "title": "JSON в дерево",
+    "vendor": "9a2a45c7-ebe1-4743-a0be-217beceedcc2",
+    "engine": "TBGJSONToTreeEngine",
+    "category": "datatree",
+    "inputs": {
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    },
+    "outputs": {
+      "DataTree": "f78f5144-f8a0-30a4-8323-ed7b6402665f"
+    },
+    "blob_len": 1649
+  },
+  {
+    "key": "exec_cmd",
+    "title": "Программа",
+    "vendor": "1ea6e840-6533-423e-b634-3d53dd9ce35e",
+    "engine": "TBGExecCmdEngine",
+    "category": "integration",
+    "inputs": {
+      "Variables": "d252e390-f72d-36c4-97fc-60d86186c3c6"
+    },
+    "outputs": {
+      "Variables": "b671426b-642b-3e7c-b9a9-9653573f3199"
+    },
+    "blob_len": 1588
+  },
+  {
+    "key": "rest_client",
+    "title": "REST-запрос",
+    "vendor": "bfbd85ed-a8ee-4a28-aac5-83851227814b",
+    "engine": "TBGRESTClient",
+    "category": "integration",
+    "inputs": {
+      "RESTClientConnection": "3d4165ea-4add-31e7-b7f2-c30c3eaa3a8d",
+      "ControlVariables": "455b65c3-0587-3a9c-b47e-9b0d285bff3c",
+      "RequestDataSource": "c6bf2c64-379d-3ca2-87cd-17267892d66a"
+    },
+    "outputs": {
+      "DataSet": "58f7e6c3-511e-39d7-8853-036e0a1a7612",
+      "AdditionalData": "922db711-38ca-3257-95b2-7114499cdf84"
+    },
+    "blob_len": 2172
+  },
+  {
+    "key": "sql_script",
+    "title": "SQL-скрипт",
+    "vendor": "98be9218-7c0d-4e39-a3f9-26b6bb9b8818",
+    "engine": "TBGSQLScriptEngine",
+    "category": "integration",
+    "inputs": {
+      "Connection": "78ce58f4-e818-3754-bc2e-6af868677420",
+      "DataSource": "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b",
+      "ControlVariables": "455b65c3-0587-3a9c-b47e-9b0d285bff3c"
+    },
+    "outputs": {
+      "DataSet": "58f7e6c3-511e-39d7-8853-036e0a1a7612"
+    },
+    "blob_len": 1786
+  }
+]

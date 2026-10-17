@@ -1,0 +1,51 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="6fa2d434-d9d8-42e9-adbe-c9d3b15c61d9" DisplayName="JSON в дерево" VendorGuid="9a2a45c7-ebe1-4743-a0be-217beceedcc2">
+				<InputPorts>
+					<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных" />
+				</InputPorts>
+				<OutputPorts>
+					<Item Guid="f78f5144-f8a0-30a4-8323-ed7b6402665f" Name="DataTree" DisplayName="Выходное дерево данных" />
+				</OutputPorts>
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<InputSockets>
+						<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных">
+							<Socket xsi:type="TBGTuneDataSourceSocket" Virgin="true">
+								<Constraints />
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+					</InputSockets>
+					<OutputSockets>
+						<Item Guid="f78f5144-f8a0-30a4-8323-ed7b6402665f" Name="DataTree" DisplayName="Выходное дерево данных">
+							<Socket xsi:type="TBGCachedDataTreeOutputSocket" Virgin="true">
+								<DataTree SyncTreeNodes="true">
+									<NodeDefTree>
+										<Root Name="Root" IsContainer="true" />
+									</NodeDefTree>
+								</DataTree>
+							</Socket>
+						</Item>
+					</OutputSockets>
+					<Engine xsi:type="TBGJSONToTreeEngine" />
+				</Component>
+				<Position Left="1144" Top="880" />
+			</Item>
+			

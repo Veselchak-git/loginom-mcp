@@ -1,0 +1,48 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="add844d1-5f80-4c3b-8dde-0fa75552cbb1" DisplayName="Дерево в таблицу" VendorGuid="94fef1d2-c326-437c-a8a4-7100dadc89a0">
+				<InputPorts>
+					<Item Guid="a739e211-c6da-3491-a88d-16770536d7e9" Name="DataTree" DisplayName="Входное дерево данных" />
+				</InputPorts>
+				<OutputPorts>
+					<Item Guid="4ba0e2c2-69ad-3a32-bbdc-75714efe7a51" Name="DataSource" DisplayName="Выходной набор данных" />
+				</OutputPorts>
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<InputSockets>
+						<Item Guid="a739e211-c6da-3491-a88d-16770536d7e9" Name="DataTree" DisplayName="Входное дерево данных">
+							<Socket xsi:type="TBGTuneDataTreeSocket" Virgin="true">
+								<Constraints />
+								<DataTree SyncTreeNodes="true">
+									<NodeDefTree>
+										<Root Name="Root" IsContainer="true" InputNodeInfoName="">
+											<Extensions>
+												<Item Guid="7e57ba87-2f85-45b1-a284-f80fdc51de7f">
+													<Extension xsi:type="TBGTreeToDataNodeDefExtension" />
+												</Item>
+											</Extensions>
+										</Root>
+									</NodeDefTree>
+								</DataTree>
+							</Socket>
+						</Item>
+					</InputSockets>
+					<OutputSockets>
+						<Item Guid="4ba0e2c2-69ad-3a32-bbdc-75714efe7a51" Name="DataSource" DisplayName="Выходной набор данных">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+					</OutputSockets>
+					<Engine xsi:type="TBGTreeToDataEngine" />
+				</Component>
+				<Position Left="48" Top="888" />
+			</Item>
+			

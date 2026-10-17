@@ -1,0 +1,63 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="f81c6d3e-a22e-49ed-894f-eccf3d34edb9" DisplayName="REST-запрос" VendorGuid="bfbd85ed-a8ee-4a28-aac5-83851227814b">
+				<InputPorts>
+					<Item Guid="3d4165ea-4add-31e7-b7f2-c30c3eaa3a8d" Name="RESTClientConnection" DisplayName="Подключение к REST-сервису" />
+					<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные" />
+					<Item Guid="c6bf2c64-379d-3ca2-87cd-17267892d66a" Name="RequestDataSource" DisplayName="Источник данных запроса" />
+				</InputPorts>
+				<OutputPorts>
+					<Item Guid="58f7e6c3-511e-39d7-8853-036e0a1a7612" Name="DataSet" DisplayName="Набор данных" />
+					<Item Guid="922db711-38ca-3257-95b2-7114499cdf84" Name="AdditionalData" DisplayName="Дополнительные данные" />
+				</OutputPorts>
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<InputSockets>
+						<Item Guid="3d4165ea-4add-31e7-b7f2-c30c3eaa3a8d" Name="RESTClientConnection" DisplayName="Подключение к REST-сервису">
+							<Socket xsi:type="TBGConnectionInputSocket" Virgin="true">
+								<Constraints />
+							</Socket>
+						</Item>
+						<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+						<Item Guid="c6bf2c64-379d-3ca2-87cd-17267892d66a" Name="RequestDataSource" DisplayName="Источник данных запроса">
+							<Socket xsi:type="TBGTuneDataSourceSocket" Virgin="true">
+								<Constraints />
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+					</InputSockets>
+					<OutputSockets>
+						<Item Guid="58f7e6c3-511e-39d7-8853-036e0a1a7612" Name="DataSet" DisplayName="Набор данных">
+							<Socket xsi:type="TBGDataSetOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="922db711-38ca-3257-95b2-7114499cdf84" Name="AdditionalData" DisplayName="Дополнительные данные">
+							<Socket xsi:type="TBGDataSetOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+					</OutputSockets>
+					<Engine xsi:type="TBGRESTClient" />
+				</Component>
+				<Position Left="600" Top="464" />
+			</Item>
+			

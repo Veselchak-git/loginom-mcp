@@ -1,0 +1,64 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="1f4dd7a4-df81-41d1-832a-aaef52174251" DisplayName="Калькулятор (дерево)" VendorGuid="4b18b749-fe66-43de-95fb-9334a5a7a7d5">
+				<InputPorts>
+					<Item Guid="a739e211-c6da-3491-a88d-16770536d7e9" Name="DataTree" DisplayName="Входное дерево данных" />
+					<Item Guid="d252e390-f72d-36c4-97fc-60d86186c3c6" Name="Variables" DisplayName="Входные переменные" />
+				</InputPorts>
+				<OutputPorts>
+					<Item Guid="f78f5144-f8a0-30a4-8323-ed7b6402665f" Name="DataTree" DisplayName="Выходное дерево данных" />
+				</OutputPorts>
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<InputSockets>
+						<Item Guid="a739e211-c6da-3491-a88d-16770536d7e9" Name="DataTree" DisplayName="Входное дерево данных">
+							<Socket xsi:type="TBGTuneDataTreeSocket" Virgin="true">
+								<Constraints />
+								<DataTree SyncTreeNodes="true">
+									<NodeDefTree>
+										<Root Name="Root" IsContainer="true" InputNodeInfoName="" />
+									</NodeDefTree>
+								</DataTree>
+							</Socket>
+						</Item>
+						<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+						<Item Guid="d252e390-f72d-36c4-97fc-60d86186c3c6" Name="Variables" DisplayName="Входные переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+					</InputSockets>
+					<OutputSockets>
+						<Item Guid="f78f5144-f8a0-30a4-8323-ed7b6402665f" Name="DataTree" DisplayName="Выходное дерево данных">
+							<Socket xsi:type="TBGDerivedDataTreeOutputSocket" Virgin="true">
+								<DataTree SyncTreeNodes="true">
+									<NodeDefTree>
+										<Root Name="Root" IsContainer="true" />
+									</NodeDefTree>
+								</DataTree>
+							</Socket>
+						</Item>
+					</OutputSockets>
+					<Engine xsi:type="TBGCalcTree">
+						<Expressions />
+					</Engine>
+				</Component>
+				<Position Left="32" Top="336" />
+			</Item>
+			

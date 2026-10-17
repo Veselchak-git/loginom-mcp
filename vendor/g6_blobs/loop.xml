@@ -1,0 +1,16 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="b2aa7afd-6631-4b5b-abea-c2ac26c60bde" DisplayName="Цикл" VendorGuid="9875bc6a-17a2-465f-b37a-7b300ac52324" OriginalVendorGuid="9875bc6a-17a2-465f-b37a-7b300ac52324" IsSealedVendor="true">
+				<InputPorts />
+				<OutputPorts />
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="77a933bc-f423-303c-b25f-1caebd2b687e" Name="BaseNode" DisplayName="Базовый узел" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component xsi:type="TBGLoopComponent" />
+				<Position Left="800" Top="136" />
+			</Item>
+			

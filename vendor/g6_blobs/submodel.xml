@@ -1,0 +1,95 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="ebfdc98a-d371-4869-8298-e7f184970ca0" DisplayName="Подмодель" VendorGuid="a38d1b44-ce57-4f4c-9357-2adb8697d6f3">
+				<InputPorts />
+				<OutputPorts />
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<Engine xsi:type="TBGModelGenericComponentEngine">
+						<ModelUnit>
+							<WorkFlow>
+								<Nodes />
+								<Links />
+								<ServiceNodes>
+									<Item Guid="6620f9de-e585-39c7-88a9-35255088ebb7" Name="VariablesNode" DisplayName="Переменные сценария" VendorGuid="af096bfc-0c02-4126-89f5-bc3a1b585321" OriginalVendorGuid="af096bfc-0c02-4126-89f5-bc3a1b585321" IsSealedVendor="true" GlobalNodeID="81283ce6-0c5f-4e48-b564-de3db2f45c20">
+										<InputPorts />
+										<OutputPorts>
+											<Item Guid="b671426b-642b-3e7c-b9a9-9653573f3199" Name="Variables" DisplayName="Переменные" />
+											<Item Guid="0c7eccb7-0e65-36e9-89f4-1b674aca3b25" Name="SystemVariables" DisplayName="Переменные системы" />
+											<Item Guid="87f24987-bc26-330f-aa19-5a67687c90a6" Name="SessionVariables" DisplayName="Переменные сессии" />
+											<Item Guid="cdece2e4-848d-331b-96e0-b52a51909547" Name="PackageVariables" DisplayName="Переменные пакета" />
+											<Item Guid="8f72d2e6-ba56-3732-b12e-98badbeafe47" Name="UserVariables" DisplayName="Переменные пользователя" />
+										</OutputPorts>
+										<ServiceInputPorts />
+										<ServiceOutputPorts>
+											<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+											<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+											<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+										</ServiceOutputPorts>
+										<Component>
+											<OutputSockets>
+												<Item Guid="b671426b-642b-3e7c-b9a9-9653573f3199" Name="Variables" DisplayName="Переменные">
+													<Socket xsi:type="TBGModelVariablesOutputSocket" />
+												</Item>
+												<Item Guid="0c7eccb7-0e65-36e9-89f4-1b674aca3b25" Name="SystemVariables" DisplayName="Переменные системы">
+													<Socket xsi:type="TBGModelVariablesOutputSocket" />
+												</Item>
+												<Item Guid="87f24987-bc26-330f-aa19-5a67687c90a6" Name="SessionVariables" DisplayName="Переменные сессии">
+													<Socket xsi:type="TBGModelVariablesOutputSocket" />
+												</Item>
+												<Item Guid="cdece2e4-848d-331b-96e0-b52a51909547" Name="PackageVariables" DisplayName="Переменные пакета">
+													<Socket xsi:type="TBGModelVariablesOutputSocket" />
+												</Item>
+												<Item Guid="8f72d2e6-ba56-3732-b12e-98badbeafe47" Name="UserVariables" DisplayName="Переменные пользователя">
+													<Socket xsi:type="TBGVariablesOutputSocket" Virgin="true">
+														<Variables>
+															<Elements />
+														</Variables>
+													</Socket>
+												</Item>
+											</OutputSockets>
+											<Engine xsi:type="TBGModelVariablesComponentEngine" />
+										</Component>
+									</Item>
+									<Item Guid="da493381-d79a-3458-8192-b3fa1602118b" Name="InputNode" DisplayName="Входной узел" VendorGuid="7e5f7bff-98e8-481f-b976-6a548dc62bf6" OriginalVendorGuid="7e5f7bff-98e8-481f-b976-6a548dc62bf6" IsSealedVendor="true" GlobalNodeID="a426ecbe-9213-4148-beec-2adc1125f8f4">
+										<InputPorts />
+										<OutputPorts />
+										<ServiceInputPorts />
+										<ServiceOutputPorts>
+											<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+											<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+											<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+										</ServiceOutputPorts>
+										<Component xsi:type="TBGModelInputComponent" />
+									</Item>
+									<Item Guid="0227b0f2-f56a-3ccd-9002-2addf19da5bb" Name="OutputNode" DisplayName="Выходной узел" VendorGuid="150ce531-44f3-4e4c-9a10-ae90ecef61fb" OriginalVendorGuid="150ce531-44f3-4e4c-9a10-ae90ecef61fb" IsSealedVendor="true" GlobalNodeID="7e08ffb2-dd2d-4e79-87d5-b1df3fcce037">
+										<InputPorts />
+										<OutputPorts />
+										<ServiceInputPorts>
+											<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+										</ServiceInputPorts>
+										<ServiceOutputPorts>
+											<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+											<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+										</ServiceOutputPorts>
+										<Component xsi:type="TBGModelOutputComponent" />
+									</Item>
+								</ServiceNodes>
+								<ServiceLinks />
+								<Annotations />
+							</WorkFlow>
+							<ModelViews>
+								<Nodes />
+								<Links />
+							</ModelViews>
+						</ModelUnit>
+					</Engine>
+				</Component>
+				<Position Left="368" Top="80" />
+			</Item>
+			

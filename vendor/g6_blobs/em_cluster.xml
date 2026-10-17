@@ -1,0 +1,69 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="70e37a22-68be-4917-979d-f4068fc3911c" DisplayName="EM Кластеризация" VendorGuid="c8606a85-1c45-4636-9e92-f1e4d867bc6d">
+				<InputPorts>
+					<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных" />
+				</InputPorts>
+				<OutputPorts>
+					<Item Guid="8b9b1aee-4f1b-3256-9f46-6730111087ce" Name="Clusters" DisplayName="Разбиение на кластеры" />
+					<Item Guid="36b1f744-de0b-3602-b083-429bcaa2fc17" Name="Centers" DisplayName="Центры кластеров" />
+				</OutputPorts>
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<InputSockets>
+						<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных">
+							<Socket xsi:type="TBGTuneNormDataSourceSocket" Virgin="true">
+								<Constraints />
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+									<DataSetPartition LearnValidationMethod="tpmNone" LearnPartitionMethod="tsmRandom" KFoldsSamplingMethod="tvsmRandom">
+										<Partition TestPriority="false">
+											<SamplingType />
+											<SamplingRecordCount Teach="100" Test="0" />
+										</Partition>
+										<LearnDataSetPercent Teach="100" Test="0" />
+										<LearnSamplingType />
+										<LearnSamplingRecordCount Teach="100" Test="0" />
+									</DataSetPartition>
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+					</InputSockets>
+					<OutputSockets>
+						<Item Guid="8b9b1aee-4f1b-3256-9f46-6730111087ce" Name="Clusters" DisplayName="Разбиение на кластеры">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="36b1f744-de0b-3602-b083-429bcaa2fc17" Name="Centers" DisplayName="Центры кластеров">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+					</OutputSockets>
+					<Engine xsi:type="TBGEMEngine">
+						<Random RandSeed="221079841" />
+						<Params />
+					</Engine>
+				</Component>
+				<Position Left="1000" Top="776" />
+			</Item>
+			

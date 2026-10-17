@@ -1,0 +1,83 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="11791414-5bbd-456c-a9b8-913024c00a4f" DisplayName="Логистическая регрессия" VendorGuid="b932b077-1ddb-4d8a-9f3a-514d72b9c094">
+				<InputPorts>
+					<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных" />
+				</InputPorts>
+				<OutputPorts>
+					<Item Guid="c1450f24-33a7-30a5-b26e-44f2cfa7d2c4" Name="PredictedData" DisplayName="Выход регрессии" />
+					<Item Guid="8983fd58-6c41-38b3-95e8-0322761b7941" Name="ModelCoefficients" DisplayName="Коэффициенты регрессионной модели" />
+					<Item Guid="5dc21ddc-1e50-38a8-8741-167f4cb00cdb" Name="Summary" DisplayName="Сводка" />
+				</OutputPorts>
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<InputSockets>
+						<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных">
+							<Socket xsi:type="TBGTuneNormDataSourceSocket" Virgin="true">
+								<Constraints />
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+									<DataSetPartition LearnValidationMethod="tpmNone" LearnPartitionMethod="tsmRandom" KFoldsSamplingMethod="tvsmRandom">
+										<Partition TestPriority="false">
+											<SamplingType />
+											<SamplingRecordCount Teach="100" Test="0" />
+										</Partition>
+										<LearnDataSetPercent Teach="100" Test="0" />
+										<LearnSamplingType />
+										<LearnSamplingRecordCount Teach="100" Test="0" />
+									</DataSetPartition>
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+					</InputSockets>
+					<OutputSockets>
+						<Item Guid="c1450f24-33a7-30a5-b26e-44f2cfa7d2c4" Name="PredictedData" DisplayName="Выход регрессии">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="8983fd58-6c41-38b3-95e8-0322761b7941" Name="ModelCoefficients" DisplayName="Коэффициенты регрессионной модели">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="5dc21ddc-1e50-38a8-8741-167f4cb00cdb" Name="Summary" DisplayName="Сводка">
+							<Socket xsi:type="TBGDerivedVariablesOutputSocket" Virgin="true">
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+					</OutputSockets>
+					<Engine xsi:type="TBGLogRegressionEngine">
+						<Random RandSeed="403684092" />
+						<RegressionParams>
+							<SimpleParamsParams />
+							<RegularizationParams />
+							<FactorSelectionParams />
+							<StatisticsParams />
+							<CalibrationParams />
+						</RegressionParams>
+					</Engine>
+				</Component>
+				<Position Left="136" Top="656" />
+			</Item>
+			

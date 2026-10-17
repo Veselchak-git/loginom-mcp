@@ -1,0 +1,59 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="4cec9d69-d0e5-4608-bb33-401b67867de9" DisplayName="Факторный анализ" VendorGuid="a026e29f-e2ac-473f-a792-47031a204125">
+				<InputPorts>
+					<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных" />
+				</InputPorts>
+				<OutputPorts>
+					<Item Guid="a5c95dba-f032-3202-8c1b-fb2c293cb5d8" Name="Factors" DisplayName="Факторы" />
+					<Item Guid="87d1eb64-e7c7-3310-84d8-9172e0c68551" Name="Loadings" DisplayName="Факторные нагрузки" />
+				</OutputPorts>
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<InputSockets>
+						<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных">
+							<Socket xsi:type="TBGTuneDataSourceSocket" Virgin="true">
+								<Constraints />
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+					</InputSockets>
+					<OutputSockets>
+						<Item Guid="a5c95dba-f032-3202-8c1b-fb2c293cb5d8" Name="Factors" DisplayName="Факторы">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="87d1eb64-e7c7-3310-84d8-9172e0c68551" Name="Loadings" DisplayName="Факторные нагрузки">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+					</OutputSockets>
+					<Engine xsi:type="TBGFactorAnalysisEngine" NOutFactorsMax="1">
+						<FactorAnalysisModel />
+					</Engine>
+				</Component>
+				<Position Left="688" Top="272" />
+			</Item>
+			

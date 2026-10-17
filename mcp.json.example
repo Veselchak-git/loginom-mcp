@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "loginom_builder": {
+      "command": "python3",
+      "args": ["/absolute/path/to/loginom_mcp/server.py"],
+      "env": {
+        "LOGINOM_MCP_OUT": "/absolute/path/to/output"
+      }
+    }
+  }
+}

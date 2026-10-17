@@ -1,0 +1,21 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="b0508ba7-b625-49bf-95d9-2a66b0e805c2" DisplayName="Условие" VendorGuid="1170d1a2-472b-4edc-9a87-68ff7805f7b6">
+				<InputPorts />
+				<OutputPorts />
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<Engine xsi:type="TBGConditionComponentEngine">
+						<Condition>
+							<ConditionBranchItems />
+						</Condition>
+					</Engine>
+				</Component>
+				<Position Left="672" Top="128" />
+			</Item>
+			

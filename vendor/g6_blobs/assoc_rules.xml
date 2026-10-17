@@ -1,0 +1,80 @@
+<Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="492c382d-5404-4853-a304-a38312f98305" DisplayName="Ассоциативные правила" VendorGuid="5596f9c0-30c4-49dc-9b21-21556e2a8c6c">
+				<InputPorts>
+					<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных" />
+					<Item Guid="024e4642-bc15-39a7-9c2d-f6128a179775" Name="InputDataSourceSuppl" DisplayName="Вспомогательные данные" />
+				</InputPorts>
+				<OutputPorts>
+					<Item Guid="0cad0601-dd8b-3f06-a1a1-5793d9bda0c4" Name="Itemsets" DisplayName="Популярные наборы" />
+					<Item Guid="724e53c6-85ad-3e71-941e-35146f815711" Name="Rules" DisplayName="Ассоциативные правила" />
+					<Item Guid="edb71a8b-7004-3bcb-9306-b7ddfaab5115" Name="Apply" DisplayName="Применение правил" />
+				</OutputPorts>
+				<ServiceInputPorts>
+					<Item Guid="00bd0b43-e4b5-3ac1-b95a-ac1bee14f858" Name="SynchronizationInputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные" />
+				</ServiceInputPorts>
+				<ServiceOutputPorts>
+					<Item Guid="ca080ff0-2342-32b0-b480-586f9747bace" Name="SynchronizationOutputPort" DisplayName="Порядок выполнения" />
+					<Item Guid="e98be5ba-c627-3a55-af82-a399dd13c73b" Name="ComponentOutputPort" DisplayName="Компонент" />
+					<Item Guid="58922a98-d1ea-36de-9099-3ce26fe160e2" Name="DependentNodeOutputPort" DisplayName="Зависимые узлы" />
+				</ServiceOutputPorts>
+				<Component>
+					<InputSockets>
+						<Item Guid="9dc72a3f-56bf-3bfc-84ec-f979daf4da6b" Name="DataSource" DisplayName="Входной источник данных">
+							<Socket xsi:type="TBGTuneDataSourceSocket" Virgin="true">
+								<Constraints />
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="455b65c3-0587-3a9c-b47e-9b0d285bff3c" Name="ControlVariables" DisplayName="Управляющие переменные">
+							<Socket xsi:type="TBGTuneVariablesSocket" Virgin="true">
+								<Constraints />
+								<Variables SyncThroughVariables="true">
+									<Elements />
+								</Variables>
+							</Socket>
+						</Item>
+						<Item Guid="024e4642-bc15-39a7-9c2d-f6128a179775" Name="InputDataSourceSuppl" DisplayName="Вспомогательные данные">
+							<Socket xsi:type="TBGTuneDataSourceSocket" Virgin="true">
+								<Constraints />
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+					</InputSockets>
+					<OutputSockets>
+						<Item Guid="0cad0601-dd8b-3f06-a1a1-5793d9bda0c4" Name="Itemsets" DisplayName="Популярные наборы">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="724e53c6-85ad-3e71-941e-35146f815711" Name="Rules" DisplayName="Ассоциативные правила">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+						<Item Guid="edb71a8b-7004-3bcb-9306-b7ddfaab5115" Name="Apply" DisplayName="Применение правил">
+							<Socket xsi:type="TBGDerivedDataSourceOutputSocket" Virgin="true">
+								<DataSource SyncThroughColumns="true">
+									<ColumnDefs />
+								</DataSource>
+							</Socket>
+						</Item>
+					</OutputSockets>
+					<Engine xsi:type="TBGAssnRulesEngine">
+						<TransactionDataSource MinSupport="1" />
+						<Params />
+						<Model Count="0" MaxLength="0" ItemCount="0" TransactionCount="0" MinSupport="0">
+							<FITree />
+						</Model>
+					</Engine>
+				</Component>
+				<Position Left="464" Top="576" />
+			</Item>
+			

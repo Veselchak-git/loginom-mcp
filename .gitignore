@@ -1,0 +1,26 @@
+# Local caches / generated packages (never commit)
+.staging/
+out/
+*.lgp
+*.~lgp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+.env
+.env.*
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Personal MCP host configs (use *.example instead)
+mcp.json
+opencode.json
