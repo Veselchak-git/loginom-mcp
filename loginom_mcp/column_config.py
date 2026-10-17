@@ -14,8 +14,8 @@ from xml.sax.saxutils import escape
 
 import importlib.util
 
-from loginom_ident import loginom_ident, resolve_column_names
-from paths import VENDOR
+from .loginom_ident import loginom_ident, resolve_column_names
+from .paths import VENDOR
 
 _spec = importlib.util.spec_from_file_location(
     "imp", VENDOR / "bgb_import_node.py"

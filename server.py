@@ -1,6 +1,7 @@
 """Loginom .lgp builder MCP server (stdio).
 
 Exposes tools to create packages, add nodes, link them, save .lgp, and verify in Loginom.
+Entry point for MCP hosts — keep this file at the repository root.
 """
 from __future__ import annotations
 
@@ -9,15 +10,16 @@ import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(_ROOT))
-# Vendored BGB builders (portable; no external _lgp_inspect)
-sys.path.insert(0, str(_ROOT / "vendor"))
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+if str(_ROOT / "vendor") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "vendor"))
 
 from mcp.server.mcpserver import MCPServer
 
-import package_session as api
-from components import list_components
-from visualizers import list_visualizers as _list_visualizers
+from loginom_mcp import package_session as api
+from loginom_mcp.components import list_components
+from loginom_mcp.visualizers import list_visualizers as _list_visualizers
 
 _INSTRUCTIONS = """\
 Loginom .lgp builder. Workflow: create_package → add_node → configure_node → link_nodes \
@@ -30,12 +32,12 @@ There is no configure_visualizer tool yet: after save_package, patch Unit_0/Unit
 Unit_0/Unit.bin in the .lgp ZIP (Loginom loads BIN), or use vendor/viz_configure.py. \
 Do not call save_package again from the MCP session after that patch — it would \
 overwrite configured views with virgin ones. Recipes: resource loginom://docs/visualizers \
-(VISUALIZERS.md).
+(docs/VISUALIZERS.md).
 
-CONTRIBUTE — implemented tools are listed in README / AGENTS.md. Missing tools \
-(start with configure_visualizer, inspect_source_schema): see AGENTS.md \
+CONTRIBUTE — implemented tools are listed in README / docs/AGENTS.md. Missing tools \
+(start with configure_visualizer, inspect_source_schema): see docs/AGENTS.md \
 «Missing tools» and loginom://docs/agents / loginom://docs/roadmap. Implement on \
-a feature branch, open a Pull Request; do not push to main. Follow CONTRIBUTING.md \
+a feature branch, open a Pull Request; do not push to main. Follow docs/CONTRIBUTING.md \
 (loginom://docs/contributing). Never commit .staging/, course .lgp, datasets, \
 secrets, or personal absolute paths.
 """
@@ -114,9 +116,9 @@ def add_node(
 
 
 def _read_doc(name: str) -> str:
-    path = _ROOT / name
+    path = _ROOT / "docs" / name
     if not path.is_file():
-        return f"(missing {name})"
+        return f"(missing docs/{name})"
     return path.read_text(encoding="utf-8")
 
 
@@ -156,7 +158,7 @@ def add_visualizer(
 
     Virgin means empty Series (chart), Dimensions/Summaries (cube), ViewColumns (table).
     That is NOT enough for a finished package: after save_package configure the view in
-    Unit.xml + Unit.bin. Read resource loginom://docs/visualizers (VISUALIZERS.md).
+    Unit.xml + Unit.bin. Read resource loginom://docs/visualizers (docs/VISUALIZERS.md).
     There is no configure_visualizer tool yet.
 
     Args:
@@ -316,23 +318,20 @@ def inspect_lgp(path: str) -> str:
 
 @mcp.tool()
 def save_package() -> str:
-    """Write the current session to an .lgp file on disk."""
+    """Write the current session to a .lgp file under output_dir."""
     return _ok(api.save_package())
 
 
 @mcp.tool()
 def verify_package(open_ui: bool = True, close_after: bool = True) -> str:
-    """Save if needed and validate the .lgp (ZIP/XML/BGB).
-
-    UI open in Loginom runs only on Windows when Loginom is available
-    (LOGINOM_EXE or default install). Elsewhere open_ui is skipped automatically.
+    """Validate the last saved .lgp (structure + optional Loginom UI on Windows).
 
     Args:
-        open_ui: Request Loginom UI check when available.
-        close_after: Close the Loginom window after the UI check.
+        open_ui: If true and Loginom is available, open the package in the UI.
+        close_after: Close Loginom after the check (when open_ui was used).
     """
     return _ok(api.verify_package(open_ui=open_ui, close_after=close_after))
 
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    mcp.run()

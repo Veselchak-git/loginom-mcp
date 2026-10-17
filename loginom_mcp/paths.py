@@ -1,12 +1,17 @@
-"""Portable path helpers for loginom_mcp (no machine-specific roots)."""
+"""Portable path helpers for loginom-mcp (no machine-specific roots)."""
 from __future__ import annotations
 
 import os
 import sys
 from pathlib import Path
 
-PACKAGE_ROOT = Path(__file__).resolve().parent
+# Package dir (loginom_mcp/) and repository root (parent).
+_PKG_DIR = Path(__file__).resolve().parent
+PACKAGE_ROOT = _PKG_DIR.parent
 VENDOR = PACKAGE_ROOT / "vendor"
+DOCS = PACKAGE_ROOT / "docs"
+EXAMPLES = PACKAGE_ROOT / "examples"
+TOOLS = PACKAGE_ROOT / "tools"
 STAGING_ROOT = PACKAGE_ROOT / ".staging"
 
 

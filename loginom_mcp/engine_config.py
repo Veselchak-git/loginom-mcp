@@ -7,12 +7,18 @@ from __future__ import annotations
 
 import re
 import struct
+import sys
 import uuid
 from html import escape
 from typing import Any
 from xml.sax.saxutils import quoteattr
 
-from bgb_import_node import (  # type: ignore
+from .paths import VENDOR
+
+if str(VENDOR) not in sys.path:
+    sys.path.insert(0, str(VENDOR))
+
+from bgb_import_node import (  # type: ignore  # noqa: E402
     empty_list,
     field_bool,
     field_char,
@@ -22,8 +28,8 @@ from bgb_import_node import (  # type: ignore
     list_of_items,
     s,
 )
-from bgb_transform_nodes import field_enum16  # type: ignore
-from loginom_ident import resolve_column_names
+from bgb_transform_nodes import field_enum16  # type: ignore  # noqa: E402
+from .loginom_ident import resolve_column_names
 
 # ConcatenationType
 CT_AND = 0

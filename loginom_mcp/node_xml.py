@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from components import (
+from .components import (
     P_DATASET,
     P_DS_ELSE,
     P_DS_IN,

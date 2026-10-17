@@ -30,7 +30,7 @@ pull requests / merge requests.
 - [ ] Title describes the user-visible outcome
 - [ ] PR body: problem → approach → how to test
 - [ ] No secrets, no personal absolute paths, no course `.lgp` / `.staging` data
-- [ ] `README.md` / `VISUALIZERS.md` / tool docstrings updated if API changed
+- [ ] `README.md` / `docs/VISUALIZERS.md` / tool docstrings updated if API changed
 - [ ] New MCP tool registered in `server.py` with a precise docstring (args matter)
 
 ## What belongs in this public repo
@@ -46,15 +46,18 @@ pull requests / merge requests.
 
 | Path | Role |
 |------|------|
-| `server.py` | MCP tools / resources / server `instructions` |
-| `package_session.py` | In-memory package graph → save `.lgp` |
-| `components.py` / `node_xml.py` / `engine_config.py` | Component registry + virgin engines |
-| `column_config.py` / `loginom_ident.py` | ColumnDefs XML+BGB |
-| `visualizers.py` | Virgin ModelViews |
-| `vendor/viz_configure.py` | **Configured** visualizer engines (post-save patch helpers) |
+| `server.py` | MCP entrypoint: tools / resources / `instructions` |
+| `loginom_mcp/` | Python package (session, nodes, columns, virgin views) |
+| `loginom_mcp/package_session.py` | In-memory package graph → save `.lgp` |
+| `loginom_mcp/components.py`, `node_xml.py`, `engine_config.py` | Registry + virgin engines |
+| `loginom_mcp/column_config.py`, `loginom_ident.py` | ColumnDefs XML+BGB |
+| `loginom_mcp/visualizers.py` | Virgin ModelViews |
+| `vendor/viz_configure.py` | **Configured** visualizer engines (post-save patch) |
 | `vendor/bgb_*.py`, `vendor/g6_blobs/` | Low-level BGB/XML templates |
 | `vendor/verify_lgp.py` | ZIP/XML/BGB (+ optional Loginom UI) verify |
 | `tools/inspect_viz.py` | CLI: virgin vs configured views |
+| `docs/` | AGENTS, CONTRIBUTING, ROADMAP, VISUALIZERS |
+| `examples/` | Host config templates |
 
 ## Adding a new MCP tool
 

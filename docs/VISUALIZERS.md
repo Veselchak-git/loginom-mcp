@@ -104,7 +104,7 @@ VendorGuid (ключ → тип):
 | Series ctColumns | `ctColumns` | `3` |
 | Axis Position left/right | `apLeftOrdinate` / `apRightOrdinate` | `1` / `2` |
 
-Virgin chart engine в билдере: `visualizers._engine_blob(VISUALIZERS["chart"])`
+Virgin chart engine в билдере: `loginom_mcp.visualizers._engine_blob(VISUALIZERS["chart"])`
 (длина ~267 байт). После Guid визуализатора в BIN ищите этот блок и **заменяйте**
 целиком настроенным `Engine`+`TBGChartView`.
 

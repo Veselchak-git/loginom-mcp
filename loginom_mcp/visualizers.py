@@ -18,7 +18,7 @@ from xml.sax.saxutils import escape
 import importlib.util
 from pathlib import Path
 
-from paths import VENDOR
+from .paths import VENDOR
 
 _spec = importlib.util.spec_from_file_location(
     "imp", VENDOR / "bgb_import_node.py"

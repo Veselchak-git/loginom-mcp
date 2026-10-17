@@ -8,17 +8,17 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from paths import PACKAGE_ROOT, STAGING_ROOT, VENDOR, default_output_dir
+from .paths import PACKAGE_ROOT, STAGING_ROOT, VENDOR, default_output_dir
 
 DEFAULT_OUT = default_output_dir()
 
-# Allow importing sibling modules and vendored builders
-sys.path.insert(0, str(PACKAGE_ROOT))
-sys.path.insert(0, str(VENDOR))
+# Vendored BGB builders stay importable as top-level modules
+if str(VENDOR) not in sys.path:
+    sys.path.insert(0, str(VENDOR))
 
-from components import COMPONENTS, list_components  # noqa: E402
-from node_xml import node_xml, unit_xml  # noqa: E402
-from column_config import (  # noqa: E402
+from .components import COMPONENTS, list_components  # noqa: E402
+from .node_xml import node_xml, unit_xml  # noqa: E402
+from .column_config import (  # noqa: E402
     ColumnSpec,
     _make_spec,
     inject_column_defs_blob,
@@ -28,12 +28,12 @@ from column_config import (  # noqa: E402
     specs_for_duplicates,
     specs_for_grouping,
 )
-from engine_config import (  # noqa: E402
+from .engine_config import (  # noqa: E402
     JOIN_TYPE_DISPLAY,
     apply_engine_settings,
     resolve_join_type,
 )
-from visualizers import (  # noqa: E402
+from .visualizers import (  # noqa: E402
     PORT_DS_IN as VIEW_PORT_DS_IN,
     PORT_COMPONENT as VIEW_PORT_COMPONENT,
     VISUALIZERS,

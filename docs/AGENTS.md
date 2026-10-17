@@ -73,7 +73,7 @@ Implement **one** of these per PR. Highest value first.
 **before** final save when possible; if patching a saved file, document that
 another `save_package` in the same session must not wipe views.
 
-**Docs to update:** `VISUALIZERS.md`, README, this file (move to “implemented”).
+**Docs to update:** `docs/VISUALIZERS.md`, README, this file (move to “implemented”).
 
 ### 2. `inspect_source_schema` (or `peek_import_fields`)
 
@@ -121,10 +121,11 @@ Also tracked in [ROADMAP.md](ROADMAP.md) — keep both lists in sync when you sh
 ## When you implement a missing tool
 
 1. Confirm the gap (user request or list above).
-2. Search existing code (`server.py`, `package_session.py`, `vendor/`).
-3. Implement library support first; thin `@mcp.tool()` wrapper in `server.py`.
+2. Search existing code (`server.py`, `loginom_mcp/`, `vendor/`).
+3. Implement library support in `loginom_mcp/` (or `vendor/`) first; thin
+   `@mcp.tool()` wrapper in `server.py`.
 4. Update `README.md` (tools table), this file (move item to “implemented”),
-   `ROADMAP.md`, and `VISUALIZERS.md` if relevant.
+   `docs/ROADMAP.md`, and `docs/VISUALIZERS.md` if relevant.
 5. Smoke-test: `python -c "import server"` (+ build/patch sample if feasible).
 6. **Feature branch → commit → open PR** (below). Do not push to `main`.
 
@@ -200,7 +201,7 @@ update **`_INSTRUCTIONS`**, **this file**, and **README**.
 
 ```bash
 rg -n "@mcp.tool" server.py
-rg -n "def configure_|def add_" package_session.py
-rg -n "viz_configure|ViewColumns|TBGChartView" vendor/
+rg -n "def configure_|def add_" loginom_mcp/package_session.py
+rg -n "viz_configure|ViewColumns|TBGChartView" vendor/ loginom_mcp/
 python tools/inspect_viz.py path/to/package.lgp
 ```

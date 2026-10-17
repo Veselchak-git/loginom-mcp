@@ -1,7 +1,7 @@
 # Roadmap — gaps agents can close
 
 Canonical “what to build next” for contributors. For agent-facing detail and
-the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md).
+the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md) in this folder.
 
 ## High priority
 

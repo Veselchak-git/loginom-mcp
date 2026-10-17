@@ -4,20 +4,33 @@
 
 Работает как **самодостаточная папка**. Подключается к любому MCP-хосту со stdio (Cursor, Claude Desktop, VS Code Copilot MCP, Continue и др.). Для сборки и просмотра `.lgp` нужен только Python — **не** обязательны Windows и установленный Loginom.
 
+## Структура репозитория
+
+```
+loginom-mcp/
+  server.py              # точка входа MCP (stdio)
+  loginom_mcp/           # Python-пакет: сессия, узлы, ColumnDefs, virgin-views
+  vendor/                # BGB/XML билдеры + g6_blobs + viz_configure
+  tools/                 # CLI-утилиты (inspect_viz)
+  docs/                  # AGENTS, CONTRIBUTING, ROADMAP, VISUALIZERS
+  examples/              # mcp.json.example, opencode.json.example
+  README.md, LICENSE, requirements.txt
+```
+
 ## Contributing / AI agents
 
-Недостающие инструменты (см. [ROADMAP.md](ROADMAP.md)) можно реализовать и прислать **Pull Request** — мейнтейнер ревьюит и мержит.
+Недостающие инструменты (см. [docs/ROADMAP.md](docs/ROADMAP.md)) можно реализовать и прислать **Pull Request** — мейнтейнер ревьюит и мержит.
 
-- Люди: [CONTRIBUTING.md](CONTRIBUTING.md)
-- ИИ-агенты (обязательно): [AGENTS.md](AGENTS.md)
+- Люди: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- ИИ-агенты (обязательно): [docs/AGENTS.md](docs/AGENTS.md)
 - MCP resources: `loginom://docs/agents`, `loginom://docs/contributing`, `loginom://docs/roadmap`, `loginom://docs/visualizers`
 
 ## Public vs private
 
 | В этом репозитории (public) | Не коммитить / держать локально |
 |-----------------------------|----------------------------------|
-| Код MCP, `vendor/`, `g6_blobs`, docs | `.staging/`, `out/`, учебные `.lgp` |
-| `*.example` конфиги | Личный `mcp.json` с абсолютными путями |
+| Код MCP, `vendor/`, `g6_blobs`, `docs/` | `.staging/`, `out/`, учебные `.lgp` |
+| `examples/*.example` | Личный `mcp.json` с абсолютными путями |
 | MIT license | Датасеты курса, домашние работы |
 
 ## Требования
@@ -30,16 +43,16 @@
 
 ## Установка
 
-1. Скопируйте всю папку `loginom_mcp` в любое место.
+1. Клонируйте или скопируйте репозиторий `loginom-mcp` целиком.
 2. Установите зависимости:
 
 ```bash
-cd /path/to/loginom_mcp
+cd /path/to/loginom-mcp
 python3 -m pip install -r requirements.txt
 # В Windows часто: python -m pip install -r requirements.txt
 ```
 
-3. Зарегистрируйте сервер в конфиге MCP-клиента. Подставьте **свои** абсолютные пути к `server.py` и каталогу вывода.
+3. Зарегистрируйте сервер в конфиге MCP-клиента (шаблоны в `examples/`). Подставьте **свои** абсолютные пути к корневому `server.py` и каталогу вывода.
 
 #### Cursor
 
@@ -200,7 +213,8 @@ python3 -m pip install -r requirements.txt
 
 4. Убедитесь, что доступен инструмент `list_loginom_components`.
 
-Примеры файлов: `mcp.json.example` (Cursor / Claude Desktop), `opencode.json.example` (OpenCode).
+Примеры файлов: `examples/mcp.json.example` (Cursor / Claude Desktop), `examples/opencode.json.example` (OpenCode).
+
 ### Переменные окружения
 
 | Переменная | Назначение |
@@ -227,9 +241,9 @@ python3 -m pip install -r requirements.txt
 
 **Resources:** `loginom://docs/visualizers`, `loginom://docs/agents`, `loginom://docs/contributing`, `loginom://docs/roadmap`.
 
-**Ещё в репозитории (не MCP-tools):** `vendor/` (BGB/XML + `viz_configure.py`), `tools/inspect_viz.py`, docs.
+**Ещё в репозитории (не MCP-tools):** `vendor/` (BGB/XML + `viz_configure.py`), `tools/inspect_viz.py`, `docs/`.
 
-Полный список «чего ещё нет» для агентов: **[AGENTS.md](AGENTS.md)** (секция *Missing tools*) и [ROADMAP.md](ROADMAP.md).
+Полный список «чего ещё нет» для агентов: **[docs/AGENTS.md](docs/AGENTS.md)** (секция *Missing tools*) и [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Визуализаторы
 
@@ -244,11 +258,12 @@ python3 -m pip install -r requirements.txt
 4. Таблица: непустой `<ViewColumns>` с нужными полями.
 5. Не вызывать повторный `save_package` из той же MCP-сессии — перезапишет virgin.
 
-Полные шаблоны, ordinals BGB и чек-лист: **[VISUALIZERS.md](VISUALIZERS.md)**.
+Полные шаблоны, ordinals BGB и чек-лист: **[docs/VISUALIZERS.md](docs/VISUALIZERS.md)**.
 
 ## Замечания
 
-- Раздавайте папку целиком (включая `vendor/g6_blobs` и `VISUALIZERS.md`). Не удаляйте `vendor/`.
+- Раздавайте репозиторий целиком (включая `vendor/g6_blobs` и `docs/`). Не удаляйте `vendor/`.
 - `.staging/` и `out/` — локальные кэши; их можно спокойно удалять.
 - `verify_package(open_ui=true)` запускает Loginom только в Windows, если задан или найден `LOGINOM_EXE`; иначе проверяется только структура ZIP/XML/BGB.
 - Разделитель полей текстового импорта **не** сохраняется в `.lgp` Loginom; в `import_settings` задают кодировку, разделители даты/чисел, лист Excel и типы столбцов.
+- Примеры конфигов: [examples/mcp.json.example](examples/mcp.json.example), [examples/opencode.json.example](examples/opencode.json.example).
