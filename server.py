@@ -28,12 +28,13 @@ audit_visualizers(path) checks a saved .lgp for empty views and wrong field name
 
 CRITICAL — visualizers: add_visualizer attaches a VIRGIN view (empty Series / \
 Dimensions / ViewColumns). configure_visualizer fills table/duplicates columns, \
-chart labels+series, and quality indicators; save_package writes XML and BIN together. \
-Cubes are still virgin. A hand-patched .lgp must not be overwritten by save_package \
-from a session that does not hold that config. Recipes: loginom://docs/visualizers.
+filters and sort, chart labels+series, cube dimensions/facts, statistics columns, \
+and quality indicators. save_package writes XML and BIN together. A hand-patched \
+.lgp must not be overwritten by save_package from a session that does not hold \
+that config. Recipes: loginom://docs/visualizers.
 
 CONTRIBUTE — implemented tools are listed in README / docs/AGENTS.md. Missing tools \
-(start with inspect_source_schema, then cube configure): see docs/AGENTS.md \
+(start with inspect_source_schema): see docs/AGENTS.md \
 «Missing tools» and loginom://docs/agents / loginom://docs/roadmap. Implement on \
 a feature branch, open a Pull Request; do not push to main. Follow docs/CONTRIBUTING.md \
 (loginom://docs/contributing). Never commit .staging/, course .lgp, datasets, \
@@ -155,7 +156,7 @@ def add_visualizer(
     """Attach a VIRGIN visualizer to a node's output (ModelViews).
 
     Virgin means empty Series (chart), Dimensions/Summaries (cube), ViewColumns (table).
-    Call configure_visualizer before save_package. Cubes stay virgin.
+    Call configure_visualizer before save_package.
     Read resource loginom://docs/visualizers (docs/VISUALIZERS.md).
 
     Args:
@@ -186,8 +187,13 @@ def configure_visualizer(
     series_type: str = "ctColumns",
     sort: list | None = None,
     include_duplicate_flags: bool = False,
+    filters: list | None = None,
+    dimensions: list | None = None,
+    facts: list | None = None,
+    case_sort: dict | None = None,
+    cube_chart: dict | None = None,
 ) -> str:
-    """Fill a table, duplicates view, chart, or quality visualizer.
+    """Fill a table, duplicates view, chart, cube, statistics, or quality visualizer.
 
     Session mode (no path): remembered until save_package, which writes Unit.xml
     and Unit.bin together. A later save_package keeps this config.
@@ -206,6 +212,17 @@ def configure_visualizer(
         sort: Table/duplicates sort, ["Field"] or [{name, direction: sdAsc|sdDesc}].
         include_duplicate_flags: Append Duplicate / Contradiction columns.
             Only for duplicates_view.
+        filters: Table/duplicates row filter. Each item is
+            {name, relation, value?, data_type?, display_name?} or
+            {row_number: true, relation: "<=", value: 20}.
+            relation: =, <, <=, >, >=, !=, is_true, is_false, is_null, between
+            (between needs lower and upper). is_true has no value.
+            Omitting filters clears Filtering.
+        dimensions: Cube axes. {name, axis: rows|cols|free, display_name?, data_type?}.
+        facts: Cube measures. {name, data_type?, functions?: [sum, count] or [0, 1]}
+            or {name: "CountCase", count_case: true}.
+        case_sort: {name, data_type?, function?: sum}.
+        cube_chart: {source, title?, width?: 300, position?: rows|cols}.
     """
     return _ok(
         api.configure_visualizer(
@@ -217,6 +234,11 @@ def configure_visualizer(
             series_type=series_type,
             sort=sort,
             include_duplicate_flags=include_duplicate_flags,
+            filters=filters,
+            dimensions=dimensions,
+            facts=facts,
+            case_sort=case_sort,
+            cube_chart=cube_chart,
         )
     )
 

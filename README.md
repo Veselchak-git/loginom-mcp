@@ -233,7 +233,7 @@ python3 -m pip install -r requirements.txt
 | `configure_node` | ColumnDefs + filter / calculator / sort / join / import / outliers / grouping |
 | `link_nodes` | Связать порты (`data`, `else`, …) |
 | `add_visualizer` | Повесить **virgin**-визуализатор (пустые Series / ViewColumns / Dimensions) |
-| `configure_visualizer` | Колонки таблицы и дубликатов, серии диаграммы, индикаторы качества (сессия или `path` к `.lgp`) |
+| `configure_visualizer` | Таблица и дубликаты (колонки, сортировка, фильтр), диаграмма, куб, статистика, качество (сессия или `path` к `.lgp`) |
 | `audit_visualizers` | Проверить сохранённый `.lgp`: пустые виды, чужие поля, нет флагов дубликатов |
 | `rename_node` | Переименовать узел или визуализатор |
 | `get_package` | Состояние текущей сессии |
@@ -250,11 +250,12 @@ python3 -m pip install -r requirements.txt
 ## Визуализаторы
 
 `add_visualizer` вешает **virgin**-представление. Перед сохранением вызовите
-`configure_visualizer` (таблица, дубликаты, диаграмма, качество). `save_package`
-записывает эту настройку в XML и BIN и не затирает её при повторном сохранении.
+`configure_visualizer` (таблица и дубликаты с фильтром и сортировкой, диаграмма,
+куб, статистика, качество). `save_package` записывает эту настройку в XML и BIN
+и не затирает её при повторном сохранении.
 
 Уже собранный файл можно поправить аргументом `path` и проверить через
-`audit_visualizers`. Куб пока остаётся пустым.
+`audit_visualizers`.
 
 Полные шаблоны и чек-лист: **[docs/VISUALIZERS.md](docs/VISUALIZERS.md)**.
 

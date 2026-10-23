@@ -923,6 +923,64 @@ def _normalize_columns(
     return out
 
 
+def _as_field(spec, lookup: dict[str, tuple[str, str]]):
+    if isinstance(spec, str):
+        spec = {"name": spec}
+    name = spec["name"]
+    known = lookup.get(name, (name, ""))
+    display = spec.get("display_name") or spec.get("displayName") or known[0] or name
+    data_type = spec.get("data_type") or spec.get("DataType") or known[1] or ""
+    return name, display, data_type, spec
+
+
+def _normalize_cube_dim(spec, lookup: dict[str, tuple[str, str]]) -> dict:
+    name, display, data_type, raw = _as_field(spec, lookup)
+    item = {
+        "name": name,
+        "display_name": display,
+        "data_type": data_type or "dtString",
+        "axis": raw.get("axis") or raw.get("DimensionType") or "rows",
+    }
+    if "order" in raw:
+        item["order"] = raw["order"]
+    return item
+
+
+def _normalize_cube_fact(spec, lookup: dict[str, tuple[str, str]]) -> dict:
+    name, display, data_type, raw = _as_field(spec, lookup)
+    item = {"name": name, "display_name": display}
+    if raw.get("count_case") or raw.get("CountCase") or name == "CountCase":
+        item["count_case"] = True
+        return item
+    item["data_type"] = data_type or "dtFloat"
+    if "functions" in raw:
+        item["functions"] = raw["functions"]
+    return item
+
+
+def _normalize_cube_sort(spec, lookup: dict[str, tuple[str, str]]) -> dict:
+    name, _display, data_type, raw = _as_field(spec, lookup)
+    item = {"name": name, "data_type": data_type or "dtFloat"}
+    if "function" in raw:
+        item["function"] = raw["function"]
+    return item
+
+
+def _normalize_stat_columns(specs: list, lookup: dict[str, tuple[str, str]]) -> list[dict]:
+    out = []
+    for spec in specs:
+        name, display, data_type, raw = _as_field(spec, lookup)
+        if not data_type:
+            raise ValueError(f"data_type required for column {name!r}")
+        item = {"name": name, "display_name": display, "data_type": data_type}
+        if "decimals" in raw:
+            item["decimals"] = raw["decimals"]
+        if "round_mode" in raw or "RoundMode" in raw:
+            item["round_mode"] = raw.get("round_mode", raw.get("RoundMode"))
+        out.append(item)
+    return out
+
+
 def _normalize_sort(sort: list | None) -> list[tuple[str, str]] | None:
     if not sort:
         return None
@@ -953,10 +1011,12 @@ def _render_view(view: ViewRec) -> tuple[str, bytes]:
         return xml, blob
     from viz_configure import (
         chart_job,
+        cube_job,
         duplicates_job,
         find_engine_span,
         patch_xml_engine,
         quality_job,
+        statistics_job,
         table_job,
     )
 
@@ -972,13 +1032,20 @@ def _render_view(view: ViewRec) -> tuple[str, bytes]:
             [tuple(col) for col in cfg["series"]],
             cfg.get("series_type") or "ctColumns",
         )
+    elif kind == "cube":
+        job = cube_job(
+            guid, cfg["dimensions"], cfg["facts"], cfg.get("case_sort"), cfg.get("chart")
+        )
+    elif kind == "statistics":
+        job = statistics_job(guid, cfg["columns"])
     else:
         cols = [tuple(col) for col in cfg["columns"]]
         sort = [tuple(item) for item in cfg["sort"]] if cfg.get("sort") else None
+        filters = cfg.get("filters")
         if kind == "duplicates":
-            job = duplicates_job(guid, cols, sort)
+            job = duplicates_job(guid, cols, sort, filters)
         else:
-            job = table_job(guid, cols, sort)
+            job = table_job(guid, cols, sort, filters)
     xml = patch_xml_engine(xml, guid, job[2])
     start, end = find_engine_span(blob, guid, job[1])
     blob = blob[:start] + job[3] + blob[end:]
@@ -995,8 +1062,13 @@ def configure_visualizer(
     series_type: str = "ctColumns",
     sort: list | None = None,
     include_duplicate_flags: bool = False,
+    filters: list | None = None,
+    dimensions: list | None = None,
+    facts: list | None = None,
+    case_sort: dict | None = None,
+    cube_chart: dict | None = None,
 ) -> dict:
-    """Configure a table, chart, quality, or duplicates visualizer.
+    """Configure a table, chart, cube, statistics, quality, or duplicates visualizer.
 
     Without ``path``, stores the setup on the current session. ``save_package``
     writes it into both Unit.xml and Unit.bin, and a later save keeps it.
@@ -1014,6 +1086,11 @@ def configure_visualizer(
             series_type=series_type,
             sort=sort,
             include_duplicate_flags=include_duplicate_flags,
+            filters=filters,
+            dimensions=dimensions,
+            facts=facts,
+            case_sort=case_sort,
+            cube_chart=cube_chart,
         )
     rec = _find_view(view)
     lookup = _session_column_index(rec.source_node)
@@ -1026,6 +1103,11 @@ def configure_visualizer(
         series_type=series_type,
         sort=sort,
         include_duplicate_flags=include_duplicate_flags,
+        filters=filters,
+        dimensions=dimensions,
+        facts=facts,
+        case_sort=case_sort,
+        cube_chart=cube_chart,
         existing_columns=None,
     )
     return {
@@ -1049,10 +1131,33 @@ def _build_view_config(
     series_type: str,
     sort: list | None,
     include_duplicate_flags: bool,
+    filters: list | None,
+    dimensions: list | None,
+    facts: list | None,
+    case_sort: dict | None,
+    cube_chart: dict | None,
     existing_columns: list[tuple[str, str, str]] | None,
 ) -> dict:
     if visualizer == "quality":
         return {"kind": "quality"}
+    if visualizer == "cube":
+        if not dimensions or not facts:
+            raise ValueError("cube requires dimensions and facts")
+        return {
+            "kind": "cube",
+            "dimensions": [_normalize_cube_dim(item, lookup) for item in dimensions],
+            "facts": [_normalize_cube_fact(item, lookup) for item in facts],
+            "case_sort": _normalize_cube_sort(case_sort, lookup) if case_sort else None,
+            "chart": cube_chart,
+        }
+    if visualizer == "statistics":
+        specs = columns if columns is not None else [
+            {"name": name, "display_name": display, "data_type": data_type}
+            for name, display, data_type in (existing_columns or [])
+        ]
+        if not specs:
+            raise ValueError("statistics requires columns")
+        return {"kind": "statistics", "columns": _normalize_stat_columns(specs, lookup)}
     if visualizer == "chart":
         if labels_field is None or not y_fields:
             raise ValueError("chart requires labels_field and y_fields")
@@ -1066,8 +1171,8 @@ def _build_view_config(
         }
     if visualizer not in ("table", "duplicates_view"):
         raise ValueError(
-            f"configure_visualizer does not support {visualizer!r} yet "
-            "(table, chart, quality, duplicates_view)"
+            f"configure_visualizer does not support {visualizer!r} "
+            "(table, chart, cube, statistics, quality, duplicates_view)"
         )
     if columns is None:
         if not existing_columns:
@@ -1083,6 +1188,7 @@ def _build_view_config(
         "kind": "duplicates" if visualizer == "duplicates_view" else "table",
         "columns": [list(col) for col in cols],
         "sort": [list(item) for item in _normalize_sort(sort)] if sort else None,
+        "filters": filters,
     }
 
 
@@ -1096,14 +1202,21 @@ def _configure_saved_visualizer(
     series_type: str,
     sort: list | None,
     include_duplicate_flags: bool,
+    filters: list | None = None,
+    dimensions: list | None = None,
+    facts: list | None = None,
+    case_sort: dict | None = None,
+    cube_chart: dict | None = None,
 ) -> dict:
     import zipfile
 
     from viz_configure import (
         chart_job,
+        cube_job,
         duplicates_job,
         patch_package,
         quality_job,
+        statistics_job,
         table_job,
     )
 
@@ -1119,6 +1232,8 @@ def _configure_saved_visualizer(
         "TBGDuplicatesView": "duplicates_view",
         "TBGChartView": "chart",
         "TBGQualityView": "quality",
+        "TBGCubeView": "cube",
+        "TBGStatView": "statistics",
     }.get(engine)
     if key is None:
         raise ValueError(f"engine {engine} is not configurable yet")
@@ -1131,6 +1246,11 @@ def _configure_saved_visualizer(
         series_type=series_type,
         sort=sort,
         include_duplicate_flags=include_duplicate_flags,
+        filters=filters,
+        dimensions=dimensions,
+        facts=facts,
+        case_sort=case_sort,
+        cube_chart=cube_chart,
         existing_columns=existing,
     )
     if cfg["kind"] == "quality":
@@ -1142,13 +1262,19 @@ def _configure_saved_visualizer(
             [tuple(col) for col in cfg["series"]],
             cfg.get("series_type") or "ctColumns",
         )
+    elif cfg["kind"] == "cube":
+        job = cube_job(
+            guid, cfg["dimensions"], cfg["facts"], cfg.get("case_sort"), cfg.get("chart")
+        )
+    elif cfg["kind"] == "statistics":
+        job = statistics_job(guid, cfg["columns"])
     else:
         cols = [tuple(col) for col in cfg["columns"]]
         sort_cols = [tuple(item) for item in cfg["sort"]] if cfg.get("sort") else None
         job = (
-            duplicates_job(guid, cols, sort_cols)
+            duplicates_job(guid, cols, sort_cols, cfg.get("filters"))
             if cfg["kind"] == "duplicates"
-            else table_job(guid, cols, sort_cols)
+            else table_job(guid, cols, sort_cols, cfg.get("filters"))
         )
     patch_package(lgp, [job], quiet=True)
     return {
@@ -1209,7 +1335,11 @@ def _saved_view(xml: str, view: str) -> tuple[str, str, list[tuple[str, str, str
     guid, _display, engine = hits[0] if len(hits) == 1 else next(h for h in hits if h[0] == view)
     at = body.find(f'Guid="{guid}"')
     window = body[at : at + 8000]
-    block = re.search(r"<ViewColumns>(.*?)</ViewColumns>", window, re.S)
+    block = re.search(
+        r"<(?:ViewColumns|StatViewColumns)>(.*?)</(?:ViewColumns|StatViewColumns)>",
+        window,
+        re.S,
+    )
     existing: list[tuple[str, str, str]] = []
     if block:
         for col in re.finditer(

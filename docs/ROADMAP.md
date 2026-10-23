@@ -14,7 +14,7 @@ the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md) in thi
 
 | Gap | Notes |
 |-----|--------|
-| Cube configure | Dimensions + Summaries + optional Charts. Table sorting is already in `configure_visualizer` |
+| Special visualizer configure | `cluster_profiles`, `roc`, `coarse_classes`, `data_tree`. Cube, statistics, table filters and sort are in `configure_visualizer` |
 | Special visualizers configure | `cluster_profiles`, `roc`, `coarse_classes`, `data_tree` |
 | Deeper `configure_node` for virgin-only components | imputation, exports, loop/submodel, modeling nodes — one engine per PR |
 | More / fresher `g6_blobs` | Mirror from real Loginom packages |
@@ -29,8 +29,8 @@ the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md) in thi
 
 MCP tools: `list_loginom_components`, `list_visualizers`, `create_package`,
 `add_node`, `configure_node`, `link_nodes`, `add_visualizer`,
-`configure_visualizer` (table / chart / quality / duplicates_view, session or
-saved `.lgp`), `audit_visualizers`, `rename_node`, `get_package`, `inspect_lgp`,
+`configure_visualizer` (table / duplicates filters+sort, chart, cube, statistics,
+quality, session or saved `.lgp`), `audit_visualizers`, `rename_node`, `get_package`, `inspect_lgp`,
 `save_package`, `verify_package`.
 
 Libraries: virgin visualizers + `VISUALIZERS.md` + `vendor/viz_configure.py` +

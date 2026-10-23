@@ -2,15 +2,15 @@
 
 > **Важно для агентов:** `add_visualizer` создаёт только **virgin**-визуализатор
 > (пустые `Series` / `Dimensions` / `ViewColumns`). Для таблицы, диаграммы,
-> качества и «Дубликаты и противоречия» вызывайте `configure_visualizer`,
-> затем `save_package` — он пишет и XML, и BIN. Куб по-прежнему virgin.
+> куба, статистики, качества и «Дубликаты и противоречия» вызывайте
+> `configure_visualizer`, затем `save_package` — он пишет и XML, и BIN.
 > Проверка готового файла: `audit_visualizers(path)` или `python tools/audit_viz.py`.
 
 ## Жизненный цикл
 
 1. Собрать сценарий: `create_package` → `add_node` → `configure_node` → `link_nodes`.
 2. Повесить визуализаторы: `list_visualizers` → `add_visualizer` (пока virgin).
-3. `configure_visualizer` — колонки / подписи и серии / индикаторы качества.
+3. `configure_visualizer` — колонки, фильтр, сортировка, куб, статистика, серии, качество.
 4. `save_package` → `.lgp` уже с настроенными видами (повторный save их сохраняет).
 5. `audit_visualizers` — пустые виды, чужие имена полей, нет флагов дубликатов.
 
@@ -259,21 +259,44 @@ Enum-атрибут 1 байт: `visualizers.field_enum8(name, value)`.
 
 ```text
 configure_visualizer(
-  view,                       # view_id / Guid / уникальный DisplayName
-  path=None,                  # если задан — правится этот .lgp, сессия не нужна
-  columns=[...],              # table / duplicates_view
-  labels_field=..., y_fields=[...], series_type="ctColumns",  # chart
-  sort=[{name, direction}],   # sdAsc / sdDesc
-  include_duplicate_flags=False
+  view,
+  path=None,
+  columns=[...],                 # table / duplicates_view / statistics
+  labels_field=..., y_fields=[...], series_type="ctColumns",
+  sort=[{name, direction}],      # sdAsc / sdDesc
+  filters=[                      # table / duplicates_view; пропуск очищает фильтр
+    {name: "Duplicate", relation: "is_true", data_type: "dtBoolean"},
+    {name: "Summa", relation: "=", value: 0, data_type: "dtFloat"},
+    {row_number: true, relation: "<=", value: 20},
+    {name: "Qty", relation: "between", lower: 1, upper: 10, data_type: "dtInteger"}
+  ],
+  include_duplicate_flags=False,
+  dimensions=[{name, axis: "rows"|"cols"|"free"}],
+  facts=[{name, data_type, functions: ["sum", "count"]}, {name: "CountCase", count_case: true}],
+  case_sort={name, data_type, function: "sum"},
+  cube_chart={source, title, width: 300, position: "rows"}
 )
 ```
 
+Фильтр визуализатора пишется в `Filtering/FilterColumns` (XML и BIN).
+`is_true` / `is_false` без значения сравнения — так Loginom сохраняет
+«Дубликат = истина». Число 0..255 хранится как `vrtByte`, большее целое как
+`vrtInt64`, дробное как `vrtDouble`, строка как `vrtString`.
+`Grouping` и `Options` остаются пустыми. Список `in` / `not_in` в фильтре
+визуализатора не кодируется.
+
 - `quality`: аргументы колонок не нужны — выставляются индикаторы и обязательные
-  дети Loginom 7 (`ColumnsStats`, `PreviewDetailing`).
+  дети Loginom 7 (`ColumnsStats`, `PreviewDetailing`). Выбор полей на сокете
+  узла этим вызовом не меняется.
 - `duplicates_view`: `include_duplicate_flags=True` добавляет `Duplicate`,
   `DuplicateGroup`, `Contradiction`, `ContradictionGroup`.
-- Куб (`dimensions` / `facts`) пока не поддерживается.
+- `cube`: измерения с `DimensionType` и факты. У числового факта по умолчанию
+  включены функции 0 и 1 (как в сохранённом кубе со «Сумма»). `CountCase` —
+  отдельный факт «Количество» без агрегатов по полю. `cube_chart` — кросс-диаграмма.
+- `statistics`: `columns` становятся `StatViewColumns`. Для чисел и дат по
+  умолчанию `RoundMode=rmoNearestMath` и 3 знака. Панели индикаторов — как у
+  настроенного `TBGStatView`.
 
 `audit_visualizers(path)` возвращает `ok` и список `issues`
-(`empty_columns`, `empty_series`, `missing_duplicate_flags`, `unknown_column`,
-`quality_shape`, `quality_virgin`).
+(`empty_columns`, `empty_series`, `empty_cube`, `empty_statistics`,
+`missing_duplicate_flags`, `unknown_column`, `quality_shape`, `quality_virgin`).

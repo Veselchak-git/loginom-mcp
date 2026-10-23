@@ -222,6 +222,17 @@ def audit_package(path: str | Path) -> dict:
                     })
             continue
 
+        if engine == "TBGStatView" and eng is not None:
+            cols = eng.find("StatViewColumns")
+            if cols is None or len(list(cols)) == 0:
+                issues.append({
+                    "code": "empty_statistics",
+                    "view": label,
+                    "guid": guid,
+                    "detail": "statistics view has no StatViewColumns",
+                })
+            continue
+
         if engine == "TBGCubeView" and eng is not None:
             dims = eng.find("Dimensions/Dimensions")
             if dims is None or len(list(dims)) == 0:

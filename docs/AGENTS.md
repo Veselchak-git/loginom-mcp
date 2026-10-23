@@ -52,16 +52,21 @@ but have little or no dedicated engine configure beyond ColumnDefs.
 
 ## Implemented visualizer tools
 
-- `configure_visualizer` — table / duplicates_view (`ViewColumns` + optional
-  `Sorting`), chart (`lkLabels` + `Series`), quality (indicator configs and
-  Loginom 7 child order). Session mode is applied by `save_package`. `path=`
-  patches a saved `.lgp` (do not `save_package` over that file from a session
-  without the same config).
-- `audit_visualizers` — empty columns/series, missing duplicate flags, fields
-  that are not on the linked node, quality engine shape.
+- `configure_visualizer` — table / duplicates_view (`ViewColumns`, `Sorting`,
+  `Filtering` including boolean `is_true`, value compare, row-number top-N, and
+  between), chart (`lkLabels` + `Series`), cube (`Dimensions`, `Summaries`,
+  optional `CaseSortItems` and `Charts`), statistics (`StatViewColumns` plus the
+  indicator panels Loginom stores on a configured view), quality (indicator
+  configs and Loginom 7 child order). Session mode is applied by `save_package`.
+  `path=` patches a saved `.lgp` (do not `save_package` over that file from a
+  session without the same config). Omitting `filters` writes an empty filter.
+- `audit_visualizers` — empty columns/series/cubes/statistics, missing duplicate
+  flags, fields that are not on the linked node, quality engine shape.
 
-**Still missing on visualizers:** `cube` (Dimensions + Summaries), `statistics`,
-and socket `ColumnDefs` for quality field selection.
+**Still missing on visualizers:** socket `ColumnDefs` for quality field
+selection, and special views (`cluster_profiles`, `roc`, `coarse_classes`,
+`data_tree`). `Grouping` and `Options` on tables stay empty: saved packages do
+not persist a richer form. View filter `in` / `not_in` lists are not encoded.
 
 ## Missing tools — start here
 
@@ -85,9 +90,9 @@ types from the linked import metadata.
 
 ### 3. Visualizer extras
 
-- Cube configure (see VISUALIZERS.md). Table sorting is already in `configure_visualizer`.
 - Special views: `cluster_profiles`, `roc`, `coarse_classes`, `data_tree`
-  (today: listable / attachable as virgin only)
+  (today: listable / attachable as virgin only).
+- Quality socket `ColumnDefs` (which fields the quality view calculates).
 
 ### 4. Deeper `configure_node` for under-configured components
 
@@ -102,7 +107,7 @@ engines (pick one per PR, mirror a real `.lgp`):
 ### 5. Session / package UX (nice to have)
 
 - `remove_node` / `unlink_nodes` / `clear_package`
-- `configure_visualizer` for `cube` / `statistics`
+- `configure_visualizer` already covers cube and statistics
 - CI golden fixtures for `verify_package` without Loginom UI
 
 Also tracked in [ROADMAP.md](ROADMAP.md) — keep both lists in sync when you ship.
