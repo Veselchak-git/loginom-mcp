@@ -28,6 +28,8 @@ from .column_config import (  # noqa: E402
     specs_for_duplicates,
     specs_for_grouping,
 )
+from .source_schema import columns_for_import, inspect_source_schema as _inspect_source_schema  # noqa: E402
+from .loginom_ident import loginom_ident  # noqa: E402
 from .engine_config import (  # noqa: E402
     JOIN_TYPE_DISPLAY,
     apply_engine_settings,
@@ -339,6 +341,76 @@ def add_node(
     }
 
 
+def inspect_source_schema(
+    path: str,
+    *,
+    encoding: str | None = None,
+    delimiter: str | None = None,
+    sample_rows: int = 500,
+) -> dict:
+    """Field list Loginom will expose for a .txt/.csv source (Name, DisplayName, types)."""
+    return _inspect_source_schema(
+        path, encoding=encoding, delimiter=delimiter, sample_rows=sample_rows
+    )
+
+
+def _resolve_source_path(session, src: str) -> Path:
+    """Absolute path, or a file next to the package output directory."""
+    path = Path(src)
+    if path.is_file():
+        return path
+    alt = session.output_dir / src
+    if alt.is_file():
+        return alt
+    raise FileNotFoundError(
+        f"source file not found: {src!r} (also tried {str(alt)!r})"
+    )
+
+
+def _upstream_import_columns(session, node_id: str) -> dict[str, tuple[str | None, str | None]]:
+    """Columns declared by import nodes upstream of ``node_id`` (Name → types)."""
+    seen = {node_id}
+    frontier = [node_id]
+    found: dict[str, tuple[str | None, str | None]] = {}
+    while frontier:
+        current = frontier.pop(0)
+        for link in session.links:
+            if link.target_node != current or link.source_node in seen:
+                continue
+            seen.add(link.source_node)
+            up = session.find_node(link.source_node)
+            cols = (up.import_settings or {}).get("columns") or []
+            for col in cols:
+                label = col.get("name") or col.get("Name")
+                if not label:
+                    continue
+                key = loginom_ident(label)
+                found.setdefault(
+                    key,
+                    (
+                        col.get("data_type") or col.get("DataType"),
+                        col.get("data_kind") or col.get("DataKind"),
+                    ),
+                )
+            frontier.append(up.id)
+    return found
+
+
+def _apply_upstream_types(session, node, specs: list[ColumnSpec]) -> None:
+    """Copy DataType/DataKind from the import node so ports match downstream."""
+    upstream = _upstream_import_columns(session, node.id)
+    if not upstream:
+        return
+    for spec in specs:
+        hit = upstream.get(spec.name)
+        if not hit:
+            continue
+        if hit[0]:
+            spec.data_type = hit[0]
+        if hit[1]:
+            spec.data_kind = hit[1]
+
+
 def configure_node(
     node: str,
     *,
@@ -426,6 +498,15 @@ def configure_node(
                 if c.get("display_name") or c.get("displayName"):
                     spec.display_name = c.get("display_name") or c.get("displayName")
                 specs.append(spec)
+    elif n.component in ("import_text", "import_excel") and (source_file or all_as_input):
+        # Read the source header/types the way Loginom will expose them.
+        src = source_file or n.file_name
+        col_dicts = columns_for_import(_resolve_source_path(s, src))
+        settings = dict(n.import_settings or {})
+        settings["columns"] = col_dicts
+        n.import_settings = settings
+        specs = list(n.columns)
+        touched_columns = False
     elif n.component == "duplicates" and (
         inputs is not None or outputs is not None or all_as_input
     ):
@@ -440,19 +521,18 @@ def configure_node(
                         src = up.file_name
                         break
         if src:
-            path = Path(src)
-            if not path.is_file():
-                path = s.output_dir / src
-            names = read_text_header(path)
+            names = read_text_header(_resolve_source_path(s, src))
         specs = specs_for_duplicates(
             names,
             inputs=inputs,
             outputs=outputs,
             all_as_input=all_as_input,
         )
+        _apply_upstream_types(s, n, specs)
     elif n.component == "grouping" and groups:
         touched_columns = True
         specs = specs_for_grouping(groups, values, default_agg=default_agg)
+        _apply_upstream_types(s, n, specs)
     elif inputs or all_as_input:
         touched_columns = True
         names = list(inputs or [])
@@ -467,11 +547,9 @@ def configure_node(
                             break
             if not src:
                 raise ValueError("all_as_input needs source_file or upstream import")
-            path = Path(src)
-            if not path.is_file():
-                path = s.output_dir / src
-            names = read_text_header(path)
+            names = read_text_header(_resolve_source_path(s, src))
         specs = specs_for_active(names)
+        _apply_upstream_types(s, n, specs)
     else:
         specs = list(n.columns)
 
@@ -875,65 +953,150 @@ def _find_view(view: str) -> ViewRec:
     return hits[0]
 
 
-def _session_column_index(node_id: str) -> dict[str, tuple[str, str]]:
+def _index_add(
+    index: dict[str, tuple[str, str, str]], name: str, display: str | None, data_type: str | None
+) -> None:
+    """Register a column under its Name *and* its DisplayName.
+
+    Loginom keeps the label (Cyrillic header) only in DisplayName; the field that
+    views and nodes reference is the transliterated Name. Accepting both spellings
+    here is what stops «ошибка входного порта» / «column not on the source node»,
+    because an agent naturally copies the header from the file.
+    """
+    if not name:
+        return
+    display = display or name
+    dtype = data_type or "dtString"
+    index.setdefault(name, (name, display, dtype))
+    index.setdefault(display, (name, display, dtype))
+
+
+def _session_column_index(node_id: str) -> dict[str, tuple[str, str, str]]:
     node = get_session().find_node(node_id)
-    index: dict[str, tuple[str, str]] = {}
+    index: dict[str, tuple[str, str, str]] = {}
     for col in node.columns:
-        index[col.name] = (col.display_name or col.name, col.data_type or "dtString")
+        _index_add(index, col.name, col.display_name, col.data_type)
     for col in (node.import_settings or {}).get("columns") or []:
         name = col.get("name") or col.get("Name")
-        if not name:
-            continue
-        index[name] = (
-            col.get("display_name") or col.get("DisplayName") or name,
-            col.get("data_type") or col.get("DataType") or "dtString",
+        _index_add(
+            index,
+            name,
+            col.get("display_name") or col.get("DisplayName"),
+            col.get("data_type") or col.get("DataType"),
         )
     for expr in node.expressions or []:
         name = expr.get("name") or expr.get("Name")
-        if not name:
-            continue
-        index[name] = (
-            expr.get("display_name") or expr.get("DisplayName") or name,
-            expr.get("data_type") or expr.get("DataType") or "dtString",
+        _index_add(
+            index,
+            name,
+            expr.get("display_name") or expr.get("DisplayName"),
+            expr.get("data_type") or expr.get("DataType"),
         )
     return index
 
 
+def _known_hint(lookup: dict[str, tuple[str, str, str]]) -> str:
+    names = sorted({value[0] for value in lookup.values()})
+    shown = ", ".join(repr(n) for n in names[:15])
+    more = "" if len(names) <= 15 else f", … (+{len(names) - 15})"
+    return f"available: {shown}{more}" if names else "the source node has no columns yet"
+
+
+def _resolve_field(
+    label: str, lookup: dict[str, tuple[str, str, str]]
+) -> tuple[str, str, str] | None:
+    if label in lookup:
+        return lookup[label]
+    folded = {key.casefold(): value for key, value in lookup.items()}
+    return folded.get(label.casefold())
+
+
 def _normalize_columns(
-    specs: list, lookup: dict[str, tuple[str, str]]
+    specs: list, lookup: dict[str, tuple[str, str, str]]
 ) -> list[tuple[str, str, str]]:
     out: list[tuple[str, str, str]] = []
     for spec in specs:
         if isinstance(spec, str):
-            if spec not in lookup:
+            known = _resolve_field(spec, lookup)
+            if known is None:
                 raise KeyError(
-                    f"column {spec!r} is not on the source node; "
-                    "pass {name, display_name, data_type}"
+                    f"column {spec!r} is not on the source node; {_known_hint(lookup)}"
                 )
-            display, data_type = lookup[spec]
-            out.append((spec, display, data_type))
+            out.append(known)
             continue
-        name = spec["name"]
-        known = lookup.get(name, (name, ""))
-        display = spec.get("display_name") or known[0] or name
-        data_type = spec.get("data_type") or known[1]
+        label = spec["name"]
+        known = _resolve_field(label, lookup)
+        name = known[0] if known else label
+        display = spec.get("display_name") or spec.get("displayName") or (known[1] if known else label)
+        data_type = spec.get("data_type") or spec.get("DataType") or (known[2] if known else "")
         if not data_type:
-            raise ValueError(f"data_type required for column {name!r}")
+            raise ValueError(
+                f"data_type required for column {label!r}; {_known_hint(lookup)}"
+            )
         out.append((name, display, data_type))
     return out
 
 
-def _as_field(spec, lookup: dict[str, tuple[str, str]]):
+def _as_field(spec, lookup: dict[str, tuple[str, str, str]]):
     if isinstance(spec, str):
         spec = {"name": spec}
-    name = spec["name"]
-    known = lookup.get(name, (name, ""))
-    display = spec.get("display_name") or spec.get("displayName") or known[0] or name
-    data_type = spec.get("data_type") or spec.get("DataType") or known[1] or ""
+    label = spec["name"]
+    known = _resolve_field(label, lookup)
+    name = known[0] if known else label
+    display = (
+        spec.get("display_name")
+        or spec.get("displayName")
+        or (known[1] if known else label)
+        or label
+    )
+    data_type = (
+        spec.get("data_type") or spec.get("DataType") or (known[2] if known else "") or ""
+    )
     return name, display, data_type, spec
 
 
-def _normalize_cube_dim(spec, lookup: dict[str, tuple[str, str]]) -> dict:
+def _normalize_filters(
+    filters: list | None, lookup: dict[str, tuple[str, str, str]]
+) -> list | None:
+    """Resolve filter field labels to Loginom field Names (row-number filters stay)."""
+    if not filters:
+        return filters
+    out = []
+    for item in filters:
+        if not isinstance(item, dict):
+            out.append(item)
+            continue
+        copy = dict(item)
+        name = copy.get("name")
+        known = _resolve_field(name, lookup) if name else None
+        if known:
+            copy["name"] = known[0]
+            copy.setdefault("display_name", known[1])
+            copy.setdefault("data_type", known[2])
+        out.append(copy)
+    return out
+
+
+def _normalize_sort(
+    sort: list | None, lookup: dict[str, tuple[str, str, str]] | None = None
+) -> list[tuple[str, str]] | None:
+    if not sort:
+        return None
+    out: list[tuple[str, str]] = []
+    for item in sort:
+        if isinstance(item, str):
+            known = _resolve_field(item, lookup) if lookup else None
+            out.append((known[0] if known else item, "sdAsc"))
+        else:
+            label = item["name"]
+            known = _resolve_field(label, lookup) if lookup else None
+            out.append(
+                (known[0] if known else label, item.get("direction") or "sdAsc")
+            )
+    return out
+
+
+def _normalize_cube_dim(spec, lookup: dict[str, tuple[str, str, str]]) -> dict:
     name, display, data_type, raw = _as_field(spec, lookup)
     item = {
         "name": name,
@@ -946,7 +1109,7 @@ def _normalize_cube_dim(spec, lookup: dict[str, tuple[str, str]]) -> dict:
     return item
 
 
-def _normalize_cube_fact(spec, lookup: dict[str, tuple[str, str]]) -> dict:
+def _normalize_cube_fact(spec, lookup: dict[str, tuple[str, str, str]]) -> dict:
     name, display, data_type, raw = _as_field(spec, lookup)
     item = {"name": name, "display_name": display}
     if raw.get("count_case") or raw.get("CountCase") or name == "CountCase":
@@ -958,7 +1121,7 @@ def _normalize_cube_fact(spec, lookup: dict[str, tuple[str, str]]) -> dict:
     return item
 
 
-def _normalize_cube_sort(spec, lookup: dict[str, tuple[str, str]]) -> dict:
+def _normalize_cube_sort(spec, lookup: dict[str, tuple[str, str, str]]) -> dict:
     name, _display, data_type, raw = _as_field(spec, lookup)
     item = {"name": name, "data_type": data_type or "dtFloat"}
     if "function" in raw:
@@ -966,7 +1129,7 @@ def _normalize_cube_sort(spec, lookup: dict[str, tuple[str, str]]) -> dict:
     return item
 
 
-def _normalize_stat_columns(specs: list, lookup: dict[str, tuple[str, str]]) -> list[dict]:
+def _normalize_stat_columns(specs: list, lookup: dict[str, tuple[str, str, str]]) -> list[dict]:
     out = []
     for spec in specs:
         name, display, data_type, raw = _as_field(spec, lookup)
@@ -978,18 +1141,6 @@ def _normalize_stat_columns(specs: list, lookup: dict[str, tuple[str, str]]) -> 
         if "round_mode" in raw or "RoundMode" in raw:
             item["round_mode"] = raw.get("round_mode", raw.get("RoundMode"))
         out.append(item)
-    return out
-
-
-def _normalize_sort(sort: list | None) -> list[tuple[str, str]] | None:
-    if not sort:
-        return None
-    out: list[tuple[str, str]] = []
-    for item in sort:
-        if isinstance(item, str):
-            out.append((item, "sdAsc"))
-        else:
-            out.append((item["name"], item.get("direction") or "sdAsc"))
     return out
 
 
@@ -1123,7 +1274,7 @@ def configure_visualizer(
 
 def _build_view_config(
     visualizer: str,
-    lookup: dict[str, tuple[str, str]],
+    lookup: dict[str, tuple[str, str, str]],
     *,
     columns: list | None,
     labels_field: str | dict | None,
@@ -1187,8 +1338,8 @@ def _build_view_config(
     return {
         "kind": "duplicates" if visualizer == "duplicates_view" else "table",
         "columns": [list(col) for col in cols],
-        "sort": [list(item) for item in _normalize_sort(sort)] if sort else None,
-        "filters": filters,
+        "sort": [list(item) for item in _normalize_sort(sort, lookup)] if sort else None,
+        "filters": _normalize_filters(filters, lookup),
     }
 
 
@@ -1288,10 +1439,10 @@ def _configure_saved_visualizer(
     }
 
 
-def _xml_column_index(xml: str) -> dict[str, tuple[str, str]]:
+def _xml_column_index(xml: str) -> dict[str, tuple[str, str, str]]:
     import re
 
-    index: dict[str, tuple[str, str]] = {}
+    index: dict[str, tuple[str, str, str]] = {}
     for match in re.finditer(
         r'<Item Name="([^"]+)"(?: DisplayName="([^"]*)")?(?:[^>]*?DataType="([^"]+)")?',
         xml,
@@ -1299,7 +1450,8 @@ def _xml_column_index(xml: str) -> dict[str, tuple[str, str]]:
         name, display, data_type = match.group(1), match.group(2), match.group(3)
         if not data_type:
             continue
-        index.setdefault(name, (display or name, data_type))
+        if name not in index:
+            _index_add(index, name, display, data_type)
     return index
 
 
