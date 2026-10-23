@@ -7,7 +7,6 @@ the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md) in thi
 
 | Gap | Status | Notes |
 |-----|--------|--------|
-| `configure_visualizer` | **Missing tool** | Phase 1: table / chart / quality / duplicates_view via `vendor/viz_configure.py` |
 | `inspect_source_schema` | **Missing tool** | Field Name/DisplayName/DataType as Loginom exposes them (esp. `.lgd`) |
 | Import → ColumnDefs binding | **Partial** | `configure_node` exists; port errors when names/types mismatch upstream |
 
@@ -15,7 +14,7 @@ the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md) in thi
 
 | Gap | Notes |
 |-----|--------|
-| Cube (+ sorting in table visualizer) | After `configure_visualizer` phase 1 |
+| Cube configure | Dimensions + Summaries + optional Charts. Table sorting is already in `configure_visualizer` |
 | Special visualizers configure | `cluster_profiles`, `roc`, `coarse_classes`, `data_tree` |
 | Deeper `configure_node` for virgin-only components | imputation, exports, loop/submodel, modeling nodes — one engine per PR |
 | More / fresher `g6_blobs` | Mirror from real Loginom packages |
@@ -29,8 +28,10 @@ the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md) in thi
 ## Done (do not reinvent)
 
 MCP tools: `list_loginom_components`, `list_visualizers`, `create_package`,
-`add_node`, `configure_node`, `link_nodes`, `add_visualizer`, `rename_node`,
-`get_package`, `inspect_lgp`, `save_package`, `verify_package`.
+`add_node`, `configure_node`, `link_nodes`, `add_visualizer`,
+`configure_visualizer` (table / chart / quality / duplicates_view, session or
+saved `.lgp`), `audit_visualizers`, `rename_node`, `get_package`, `inspect_lgp`,
+`save_package`, `verify_package`.
 
 Libraries: virgin visualizers + `VISUALIZERS.md` + `vendor/viz_configure.py` +
 `tools/inspect_viz.py`.

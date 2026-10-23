@@ -204,6 +204,8 @@ class ViewRec:
     source_node: str
     source_port_name: str
     source_port_guid: str
+    # Filled by configure_visualizer; applied in save_package (not a virgin engine).
+    config: dict | None = None
 
 
 @dataclass
@@ -725,6 +727,8 @@ def package_info() -> dict:
                 "visualizer": v.visualizer,
                 "display_name": v.display_name,
                 "attached_to": f"{v.source_node}.{v.source_port_name}",
+                "configured": v.config is not None,
+                "config": v.config,
             }
             for v in s.views
         ],
@@ -855,6 +859,374 @@ def inspect_lgp(path: str) -> dict:
     }
 
 
+def _find_view(view: str) -> ViewRec:
+    s = get_session()
+    hits = [
+        v
+        for v in s.views
+        if v.id == view or str(v.guid) == view or v.display_name == view
+    ]
+    if not hits:
+        raise KeyError(f"visualizer not found: {view!r}")
+    if len(hits) > 1:
+        raise KeyError(
+            f"visualizer name {view!r} is ambiguous: {[v.id for v in hits]}"
+        )
+    return hits[0]
+
+
+def _session_column_index(node_id: str) -> dict[str, tuple[str, str]]:
+    node = get_session().find_node(node_id)
+    index: dict[str, tuple[str, str]] = {}
+    for col in node.columns:
+        index[col.name] = (col.display_name or col.name, col.data_type or "dtString")
+    for col in (node.import_settings or {}).get("columns") or []:
+        name = col.get("name") or col.get("Name")
+        if not name:
+            continue
+        index[name] = (
+            col.get("display_name") or col.get("DisplayName") or name,
+            col.get("data_type") or col.get("DataType") or "dtString",
+        )
+    for expr in node.expressions or []:
+        name = expr.get("name") or expr.get("Name")
+        if not name:
+            continue
+        index[name] = (
+            expr.get("display_name") or expr.get("DisplayName") or name,
+            expr.get("data_type") or expr.get("DataType") or "dtString",
+        )
+    return index
+
+
+def _normalize_columns(
+    specs: list, lookup: dict[str, tuple[str, str]]
+) -> list[tuple[str, str, str]]:
+    out: list[tuple[str, str, str]] = []
+    for spec in specs:
+        if isinstance(spec, str):
+            if spec not in lookup:
+                raise KeyError(
+                    f"column {spec!r} is not on the source node; "
+                    "pass {name, display_name, data_type}"
+                )
+            display, data_type = lookup[spec]
+            out.append((spec, display, data_type))
+            continue
+        name = spec["name"]
+        known = lookup.get(name, (name, ""))
+        display = spec.get("display_name") or known[0] or name
+        data_type = spec.get("data_type") or known[1]
+        if not data_type:
+            raise ValueError(f"data_type required for column {name!r}")
+        out.append((name, display, data_type))
+    return out
+
+
+def _normalize_sort(sort: list | None) -> list[tuple[str, str]] | None:
+    if not sort:
+        return None
+    out: list[tuple[str, str]] = []
+    for item in sort:
+        if isinstance(item, str):
+            out.append((item, "sdAsc"))
+        else:
+            out.append((item["name"], item.get("direction") or "sdAsc"))
+    return out
+
+
+def _with_duplicate_flags(
+    cols: list[tuple[str, str, str]], enabled: bool
+) -> list[tuple[str, str, str]]:
+    if not enabled:
+        return cols
+    from viz_configure import DUPLICATE_FLAGS
+
+    have = {name for name, _, _ in cols}
+    return cols + [flag for flag in DUPLICATE_FLAGS if flag[0] not in have]
+
+
+def _render_view(view: ViewRec) -> tuple[str, bytes]:
+    xml = visualizer_xml(view.visualizer, view.guid, view.display_name)
+    blob = build_visualizer_node(view.visualizer, view.guid, view.display_name)
+    if not view.config:
+        return xml, blob
+    from viz_configure import (
+        chart_job,
+        duplicates_job,
+        find_engine_span,
+        patch_xml_engine,
+        quality_job,
+        table_job,
+    )
+
+    cfg = view.config
+    guid = str(view.guid)
+    kind = cfg["kind"]
+    if kind == "quality":
+        job = quality_job(guid)
+    elif kind == "chart":
+        job = chart_job(
+            guid,
+            tuple(cfg["labels"]),
+            [tuple(col) for col in cfg["series"]],
+            cfg.get("series_type") or "ctColumns",
+        )
+    else:
+        cols = [tuple(col) for col in cfg["columns"]]
+        sort = [tuple(item) for item in cfg["sort"]] if cfg.get("sort") else None
+        if kind == "duplicates":
+            job = duplicates_job(guid, cols, sort)
+        else:
+            job = table_job(guid, cols, sort)
+    xml = patch_xml_engine(xml, guid, job[2])
+    start, end = find_engine_span(blob, guid, job[1])
+    blob = blob[:start] + job[3] + blob[end:]
+    return xml, blob
+
+
+def configure_visualizer(
+    view: str,
+    *,
+    path: str | None = None,
+    columns: list | None = None,
+    labels_field: str | dict | None = None,
+    y_fields: list | None = None,
+    series_type: str = "ctColumns",
+    sort: list | None = None,
+    include_duplicate_flags: bool = False,
+) -> dict:
+    """Configure a table, chart, quality, or duplicates visualizer.
+
+    Without ``path``, stores the setup on the current session. ``save_package``
+    writes it into both Unit.xml and Unit.bin, and a later save keeps it.
+
+    With ``path``, patches that ``.lgp`` immediately. Do not ``save_package``
+    over the same file from a session that does not contain this config.
+    """
+    if path:
+        return _configure_saved_visualizer(
+            path,
+            view,
+            columns=columns,
+            labels_field=labels_field,
+            y_fields=y_fields,
+            series_type=series_type,
+            sort=sort,
+            include_duplicate_flags=include_duplicate_flags,
+        )
+    rec = _find_view(view)
+    lookup = _session_column_index(rec.source_node)
+    rec.config = _build_view_config(
+        rec.visualizer,
+        lookup,
+        columns=columns,
+        labels_field=labels_field,
+        y_fields=y_fields,
+        series_type=series_type,
+        sort=sort,
+        include_duplicate_flags=include_duplicate_flags,
+        existing_columns=None,
+    )
+    return {
+        "ok": True,
+        "view_id": rec.id,
+        "guid": str(rec.guid),
+        "visualizer": rec.visualizer,
+        "configured": True,
+        "config": rec.config,
+        "applied": "on_save",
+    }
+
+
+def _build_view_config(
+    visualizer: str,
+    lookup: dict[str, tuple[str, str]],
+    *,
+    columns: list | None,
+    labels_field: str | dict | None,
+    y_fields: list | None,
+    series_type: str,
+    sort: list | None,
+    include_duplicate_flags: bool,
+    existing_columns: list[tuple[str, str, str]] | None,
+) -> dict:
+    if visualizer == "quality":
+        return {"kind": "quality"}
+    if visualizer == "chart":
+        if labels_field is None or not y_fields:
+            raise ValueError("chart requires labels_field and y_fields")
+        labels = _normalize_columns([labels_field], lookup)[0]
+        series = _normalize_columns(list(y_fields), lookup)
+        return {
+            "kind": "chart",
+            "labels": list(labels),
+            "series": [list(col) for col in series],
+            "series_type": series_type,
+        }
+    if visualizer not in ("table", "duplicates_view"):
+        raise ValueError(
+            f"configure_visualizer does not support {visualizer!r} yet "
+            "(table, chart, quality, duplicates_view)"
+        )
+    if columns is None:
+        if not existing_columns:
+            raise ValueError("columns are required")
+        cols = list(existing_columns)
+    else:
+        cols = _normalize_columns(columns, lookup)
+    if visualizer == "duplicates_view":
+        cols = _with_duplicate_flags(cols, include_duplicate_flags)
+    elif include_duplicate_flags:
+        raise ValueError("include_duplicate_flags is only for duplicates_view")
+    return {
+        "kind": "duplicates" if visualizer == "duplicates_view" else "table",
+        "columns": [list(col) for col in cols],
+        "sort": [list(item) for item in _normalize_sort(sort)] if sort else None,
+    }
+
+
+def _configure_saved_visualizer(
+    path: str,
+    view: str,
+    *,
+    columns: list | None,
+    labels_field: str | dict | None,
+    y_fields: list | None,
+    series_type: str,
+    sort: list | None,
+    include_duplicate_flags: bool,
+) -> dict:
+    import zipfile
+
+    from viz_configure import (
+        chart_job,
+        duplicates_job,
+        patch_package,
+        quality_job,
+        table_job,
+    )
+
+    lgp = Path(path)
+    if not lgp.is_file():
+        raise FileNotFoundError(path)
+    with zipfile.ZipFile(lgp) as zf:
+        xml = zf.read("Unit_0/Unit.xml").decode("utf-8")
+    lookup = _xml_column_index(xml)
+    guid, engine, existing = _saved_view(xml, view)
+    key = {
+        "TBGBrowseView": "table",
+        "TBGDuplicatesView": "duplicates_view",
+        "TBGChartView": "chart",
+        "TBGQualityView": "quality",
+    }.get(engine)
+    if key is None:
+        raise ValueError(f"engine {engine} is not configurable yet")
+    cfg = _build_view_config(
+        key,
+        lookup,
+        columns=columns,
+        labels_field=labels_field,
+        y_fields=y_fields,
+        series_type=series_type,
+        sort=sort,
+        include_duplicate_flags=include_duplicate_flags,
+        existing_columns=existing,
+    )
+    if cfg["kind"] == "quality":
+        job = quality_job(guid)
+    elif cfg["kind"] == "chart":
+        job = chart_job(
+            guid,
+            tuple(cfg["labels"]),
+            [tuple(col) for col in cfg["series"]],
+            cfg.get("series_type") or "ctColumns",
+        )
+    else:
+        cols = [tuple(col) for col in cfg["columns"]]
+        sort_cols = [tuple(item) for item in cfg["sort"]] if cfg.get("sort") else None
+        job = (
+            duplicates_job(guid, cols, sort_cols)
+            if cfg["kind"] == "duplicates"
+            else table_job(guid, cols, sort_cols)
+        )
+    patch_package(lgp, [job], quiet=True)
+    return {
+        "ok": True,
+        "path": str(lgp.resolve()),
+        "guid": guid,
+        "engine": engine,
+        "configured": True,
+        "config": cfg,
+        "applied": "file",
+    }
+
+
+def _xml_column_index(xml: str) -> dict[str, tuple[str, str]]:
+    import re
+
+    index: dict[str, tuple[str, str]] = {}
+    for match in re.finditer(
+        r'<Item Name="([^"]+)"(?: DisplayName="([^"]*)")?(?:[^>]*?DataType="([^"]+)")?',
+        xml,
+    ):
+        name, display, data_type = match.group(1), match.group(2), match.group(3)
+        if not data_type:
+            continue
+        index.setdefault(name, (display or name, data_type))
+    return index
+
+
+def _saved_view(xml: str, view: str) -> tuple[str, str, list[tuple[str, str, str]]]:
+    import re
+
+    model = re.search(r"<ModelViews>(.*)</ModelViews>", xml, re.S)
+    if not model:
+        raise KeyError("ModelViews missing")
+    body = model.group(1)
+    items = list(
+        re.finditer(
+            r'<Item Guid="([^"]+)" DisplayName="([^"]*)"[^>]*VendorGuid="[^"]+"',
+            body,
+        )
+    )
+    # ModelViews items are those whose following engine is a view engine.
+    hits: list[tuple[str, str, str]] = []
+    for match in items:
+        guid, display = match.group(1), match.group(2)
+        window = body[match.start() : match.start() + 8000]
+        engine = re.search(r'xsi:type="(TBG(?:Browse|Duplicates|Chart|Quality|Cube|Stat)View)"', window)
+        if not engine:
+            continue
+        if view in (guid, display) or display.replace("\r\n", " / ") == view:
+            hits.append((guid, display, engine.group(1)))
+    if not hits:
+        raise KeyError(f"visualizer not found in package: {view!r}")
+    if len(hits) > 1 and view not in {h[0] for h in hits}:
+        raise KeyError(
+            f"visualizer name {view!r} is ambiguous ({len(hits)} matches); pass Guid"
+        )
+    guid, _display, engine = hits[0] if len(hits) == 1 else next(h for h in hits if h[0] == view)
+    at = body.find(f'Guid="{guid}"')
+    window = body[at : at + 8000]
+    block = re.search(r"<ViewColumns>(.*?)</ViewColumns>", window, re.S)
+    existing: list[tuple[str, str, str]] = []
+    if block:
+        for col in re.finditer(
+            r'<Item Name="([^"]+)"(?: DisplayName="([^"]*)")?[^>]*DataType="([^"]+)"',
+            block.group(1),
+        ):
+            existing.append((col.group(1), col.group(2) or col.group(1), col.group(3)))
+    return guid, engine, existing
+
+
+def audit_visualizers(path: str) -> dict:
+    """Check a saved .lgp: empty views, missing duplicate flags, unknown field names."""
+    from viz_audit import audit_package
+
+    return audit_package(path)
+
+
 def save_package() -> dict:
     s = get_session()
     staging = STAGING_ROOT / f"staging_mcp_{s.name}"
@@ -933,10 +1305,9 @@ def save_package() -> dict:
     view_link_bins: list[bytes] = []
     view_link_dicts: list[dict] = []
     for v in s.views:
-        view_bins.append(
-            build_visualizer_node(v.visualizer, v.guid, v.display_name)
-        )
-        view_xmls.append(visualizer_xml(v.visualizer, v.guid, v.display_name))
+        view_xml, view_bin = _render_view(v)
+        view_bins.append(view_bin)
+        view_xmls.append(view_xml)
         link_guid = uuid.uuid4()
         view_link_bins.append(
             imp.build_link_item(

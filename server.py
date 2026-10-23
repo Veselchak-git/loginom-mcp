@@ -23,19 +23,17 @@ from loginom_mcp.visualizers import list_visualizers as _list_visualizers
 
 _INSTRUCTIONS = """\
 Loginom .lgp builder. Workflow: create_package → add_node → configure_node → link_nodes \
-→ add_visualizer → save_package → verify_package.
+→ add_visualizer → configure_visualizer → save_package → verify_package. \
+audit_visualizers(path) checks a saved .lgp for empty views and wrong field names.
 
-CRITICAL — visualizers: add_visualizer attaches a VIRGIN view only (empty Series / \
-Dimensions / ViewColumns). For deliverable packages you MUST configure charts \
-(labels FieldName + Series), cubes (dimensions + summaries), and tables (ViewColumns). \
-There is no configure_visualizer tool yet: after save_package, patch Unit_0/Unit.xml AND \
-Unit_0/Unit.bin in the .lgp ZIP (Loginom loads BIN), or use vendor/viz_configure.py. \
-Do not call save_package again from the MCP session after that patch — it would \
-overwrite configured views with virgin ones. Recipes: resource loginom://docs/visualizers \
-(docs/VISUALIZERS.md).
+CRITICAL — visualizers: add_visualizer attaches a VIRGIN view (empty Series / \
+Dimensions / ViewColumns). configure_visualizer fills table/duplicates columns, \
+chart labels+series, and quality indicators; save_package writes XML and BIN together. \
+Cubes are still virgin. A hand-patched .lgp must not be overwritten by save_package \
+from a session that does not hold that config. Recipes: loginom://docs/visualizers.
 
 CONTRIBUTE — implemented tools are listed in README / docs/AGENTS.md. Missing tools \
-(start with configure_visualizer, inspect_source_schema): see docs/AGENTS.md \
+(start with inspect_source_schema, then cube configure): see docs/AGENTS.md \
 «Missing tools» and loginom://docs/agents / loginom://docs/roadmap. Implement on \
 a feature branch, open a Pull Request; do not push to main. Follow docs/CONTRIBUTING.md \
 (loginom://docs/contributing). Never commit .staging/, course .lgp, datasets, \
@@ -157,9 +155,8 @@ def add_visualizer(
     """Attach a VIRGIN visualizer to a node's output (ModelViews).
 
     Virgin means empty Series (chart), Dimensions/Summaries (cube), ViewColumns (table).
-    That is NOT enough for a finished package: after save_package configure the view in
-    Unit.xml + Unit.bin. Read resource loginom://docs/visualizers (docs/VISUALIZERS.md).
-    There is no configure_visualizer tool yet.
+    Call configure_visualizer before save_package. Cubes stay virgin.
+    Read resource loginom://docs/visualizers (docs/VISUALIZERS.md).
 
     Args:
         node: Workflow node_id, display_name, or guid.
@@ -177,6 +174,65 @@ def add_visualizer(
             view_id=view_id,
         )
     )
+
+
+@mcp.tool()
+def configure_visualizer(
+    view: str,
+    path: str | None = None,
+    columns: list | None = None,
+    labels_field: str | dict | None = None,
+    y_fields: list | None = None,
+    series_type: str = "ctColumns",
+    sort: list | None = None,
+    include_duplicate_flags: bool = False,
+) -> str:
+    """Fill a table, duplicates view, chart, or quality visualizer.
+
+    Session mode (no path): remembered until save_package, which writes Unit.xml
+    and Unit.bin together. A later save_package keeps this config.
+
+    File mode (path): patches that .lgp now. Do not save_package over it from a
+    session that does not contain the same config.
+
+    Args:
+        view: Session view_id / guid / unique DisplayName, or a guid in the file.
+        path: Optional .lgp to patch instead of the current session.
+        columns: Table or duplicates columns. Strings must exist on the source
+            node. Or {name, display_name?, data_type?}. Omit to keep file columns.
+        labels_field: Chart category field (name or {name, display_name?, data_type?}).
+        y_fields: Chart measures, same shape as columns.
+        series_type: ctColumns (default), ctArea, or ctSpline.
+        sort: Table/duplicates sort, ["Field"] or [{name, direction: sdAsc|sdDesc}].
+        include_duplicate_flags: Append Duplicate / Contradiction columns.
+            Only for duplicates_view.
+    """
+    return _ok(
+        api.configure_visualizer(
+            view,
+            path=path,
+            columns=columns,
+            labels_field=labels_field,
+            y_fields=y_fields,
+            series_type=series_type,
+            sort=sort,
+            include_duplicate_flags=include_duplicate_flags,
+        )
+    )
+
+
+@mcp.tool()
+def audit_visualizers(path: str) -> str:
+    """Check visualizers in a saved .lgp (no session).
+
+    Reports empty tables/charts, quality engines missing Loginom 7 children,
+    duplicates views without Duplicate/Contradiction columns, and view fields
+    that are not on the linked node.
+
+    Args:
+        path: Absolute or relative path to a .lgp file.
+    """
+    return _ok(api.audit_visualizers(path))
 
 
 @mcp.tool()

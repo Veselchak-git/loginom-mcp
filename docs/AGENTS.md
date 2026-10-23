@@ -40,8 +40,8 @@ Do **not** reinvent these. They live in `server.py` → `package_session.py`.
 **Resources:** `loginom://docs/visualizers`, `loginom://docs/agents`,
 `loginom://docs/contributing`, `loginom://docs/roadmap`.
 
-**Library (not MCP tools yet):** `vendor/viz_configure.py` (patch configured
-table/chart/quality/duplicates into a saved `.lgp`), `tools/inspect_viz.py` CLI.
+**Library:** `vendor/viz_configure.py` (configured table/chart/quality/duplicates
+engines), `vendor/viz_audit.py`, `tools/inspect_viz.py`, `tools/audit_viz.py`.
 
 **`configure_node` covers today:** columns / inputs / outputs / groups / values,
 `filter_items`, `expressions`, `sort_columns`, `ordered_sample`, `join_type` +
@@ -50,32 +50,24 @@ but have little or no dedicated engine configure beyond ColumnDefs.
 
 ---
 
+## Implemented visualizer tools
+
+- `configure_visualizer` — table / duplicates_view (`ViewColumns` + optional
+  `Sorting`), chart (`lkLabels` + `Series`), quality (indicator configs and
+  Loginom 7 child order). Session mode is applied by `save_package`. `path=`
+  patches a saved `.lgp` (do not `save_package` over that file from a session
+  without the same config).
+- `audit_visualizers` — empty columns/series, missing duplicate flags, fields
+  that are not on the linked node, quality engine shape.
+
+**Still missing on visualizers:** `cube` (Dimensions + Summaries), `statistics`,
+and socket `ColumnDefs` for quality field selection.
+
 ## Missing tools — start here
 
 Implement **one** of these per PR. Highest value first.
 
-### 1. `configure_visualizer` (highest priority)
-
-**Why:** `add_visualizer` only creates virgin views. Agents still hand-patch
-`Unit.xml` + `Unit.bin` after `save_package`.
-
-**Should support (phase 1):**
-
-- `table` / `duplicates_view` → `ViewColumns` (+ optional `Sorting`)
-- `chart` → `lkLabels` FieldName + `Series` (ctColumns / …)
-- `quality` → indicator column configs
-
-**Phase 2:** `cube` (Dimensions + Summaries + optional Charts), `statistics`.
-
-**Reuse:** `vendor/viz_configure.py` (`table_job`, `chart_job`, `quality_job`,
-`duplicates_job`, `patch_package`). Expose session-aware API in
-`package_session.py` + `@mcp.tool()` in `server.py`. Prefer configuring
-**before** final save when possible; if patching a saved file, document that
-another `save_package` in the same session must not wipe views.
-
-**Docs to update:** `docs/VISUALIZERS.md`, README, this file (move to “implemented”).
-
-### 2. `inspect_source_schema` (or `peek_import_fields`)
+### 1. `inspect_source_schema` (or `peek_import_fields`)
 
 **Why:** Wrong field names (`Summ` vs `Summa_pokupki`, LGD internal vs Loginom
 DisplayName transliteration) cause «ошибка входного порта» on the first
@@ -85,20 +77,19 @@ downstream nodes.
 `Name` / `DisplayName` / `DataType` list as Loginom will expose them so
 `configure_node` can bind `InputColumnInfoName` correctly.
 
-### 3. Stronger import → ColumnDefs binding helpers
+### 2. Stronger import → ColumnDefs binding helpers
 
-**Why:** Same port-error class of bugs. May be part of (2) or a
+**Why:** Same port-error class of bugs. May be part of (1) or a
 `sync_columns_from_upstream` tool / `configure_node` enhancement that copies
 types from the linked import metadata.
 
-### 4. Visualizer extras (after #1)
+### 3. Visualizer extras
 
-- Table `SortingColumns` / Filtering for top-N without Sort nodes
-- Cube configure (see VISUALIZERS.md)
+- Cube configure (see VISUALIZERS.md). Table sorting is already in `configure_visualizer`.
 - Special views: `cluster_profiles`, `roc`, `coarse_classes`, `data_tree`
   (today: listable / attachable as virgin only)
 
-### 5. Deeper `configure_node` for under-configured components
+### 4. Deeper `configure_node` for under-configured components
 
 Many keys from `list_loginom_components` are virgin add only. Useful next
 engines (pick one per PR, mirror a real `.lgp`):
@@ -108,10 +99,10 @@ engines (pick one per PR, mirror a real `.lgp`):
 - `loop` / `condition` / `submodel` / `reference_node`
 - Modeling nodes (`cluster`, `lin_regression`, `nn_*`, …) — large surface
 
-### 6. Session / package UX (nice to have)
+### 5. Session / package UX (nice to have)
 
 - `remove_node` / `unlink_nodes` / `clear_package`
-- `configure_visualizer` apply to **saved** `.lgp` path without full session
+- `configure_visualizer` for `cube` / `statistics`
 - CI golden fixtures for `verify_package` without Loginom UI
 
 Also tracked in [ROADMAP.md](ROADMAP.md) — keep both lists in sync when you ship.
@@ -129,11 +120,12 @@ Also tracked in [ROADMAP.md](ROADMAP.md) — keep both lists in sync when you sh
 5. Smoke-test: `python -c "import server"` (+ build/patch sample if feasible).
 6. **Feature branch → commit → open PR** (below). Do not push to `main`.
 
-### Visualizers (until `configure_visualizer` lands)
+### Visualizers
 
-- Prefer extending `vendor/viz_configure.py`.
-- Keep XML Engine and BIN Engine replacements in sync.
-- Never call `save_package` again after a post-save patch in the same session.
+- Extend `vendor/viz_configure.py` for new engines (cube next).
+- Keep XML Engine and BIN Engine in sync.
+- `save_package` preserves `configure_visualizer` state. It does **not** reload
+  a file you patched with `path=`.
 
 Resource: `loginom://docs/visualizers` (= `VISUALIZERS.md`).
 

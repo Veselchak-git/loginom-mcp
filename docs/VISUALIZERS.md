@@ -1,23 +1,22 @@
 # Настройка визуализаторов Loginom (ModelViews)
 
 > **Важно для агентов:** `add_visualizer` создаёт только **virgin**-визуализатор
-> (пустые `Series` / `Dimensions` / `ViewColumns`). В учебном/готовом пакете этого **недостаточно** —
-> оси, серии, измерения куба и колонки таблицы нужно настроить.
-> Инструмента `configure_visualizer` в MCP **пока нет**: после `save_package` правьте
-> `Unit_0/Unit.xml` **и** `Unit_0/Unit.bin` (Loginom при открытии опирается на BIN).
+> (пустые `Series` / `Dimensions` / `ViewColumns`). Для таблицы, диаграммы,
+> качества и «Дубликаты и противоречия» вызывайте `configure_visualizer`,
+> затем `save_package` — он пишет и XML, и BIN. Куб по-прежнему virgin.
+> Проверка готового файла: `audit_visualizers(path)` или `python tools/audit_viz.py`.
 
 ## Жизненный цикл
 
 1. Собрать сценарий: `create_package` → `add_node` → `configure_node` → `link_nodes`.
 2. Повесить визуализаторы: `list_visualizers` → `add_visualizer` (пока virgin).
-3. `save_package` → получить `.lgp`.
-4. **Настроить** визуализаторы в ZIP (XML + BIN) по схемам ниже.
-5. Проверка: в XML не должно остаться `<Series/>`, пустого
-   `<Dimensions><Dimensions/></Dimensions>`, `<ViewColumns/>` у таблиц задания;
-   в BIN должны встречаться нужные `FieldName` / имена измерений.
+3. `configure_visualizer` — колонки / подписи и серии / индикаторы качества.
+4. `save_package` → `.lgp` уже с настроенными видами (повторный save их сохраняет).
+5. `audit_visualizers` — пустые виды, чужие имена полей, нет флагов дубликатов.
 
-Не вызывайте повторный `save_package` из сессии MCP после ручной правки `.lgp` —
-сессия перезапишет virgin-визуализаторы.
+Чтобы поправить уже сохранённый файл без сессии: `configure_visualizer(view, path=...)`.
+Ручная правка ZIP ниже остаётся запасным путём. После неё не вызывайте
+`save_package` из сессии, в которой этой настройки нет — сессия запишет virgin.
 
 ## Где лежат визуализаторы
 
@@ -256,17 +255,25 @@ Enum-атрибут 1 байт: `visualizers.field_enum8(name, value)`.
 - [ ] Те же имена присутствуют в `Unit.bin` (UTF-8 строки).
 - [ ] Кросс-диаграмма: либо отдельный `chart`, либо `<Charts>` внутри куба.
 
-## Ограничение MCP (для будущей доработки)
-
-Желаемый API (ещё не реализован):
+## MCP: `configure_visualizer`
 
 ```text
 configure_visualizer(
-  view,
-  labels_field=..., y_fields=[...],          # chart
-  dimensions=[...], facts=[...],             # cube
-  columns=[...], sort=[{name, direction}]    # table
+  view,                       # view_id / Guid / уникальный DisplayName
+  path=None,                  # если задан — правится этот .lgp, сессия не нужна
+  columns=[...],              # table / duplicates_view
+  labels_field=..., y_fields=[...], series_type="ctColumns",  # chart
+  sort=[{name, direction}],   # sdAsc / sdDesc
+  include_duplicate_flags=False
 )
 ```
 
-До появления инструмента используйте правку XML+BIN по этому документу.
+- `quality`: аргументы колонок не нужны — выставляются индикаторы и обязательные
+  дети Loginom 7 (`ColumnsStats`, `PreviewDetailing`).
+- `duplicates_view`: `include_duplicate_flags=True` добавляет `Duplicate`,
+  `DuplicateGroup`, `Contradiction`, `ContradictionGroup`.
+- Куб (`dimensions` / `facts`) пока не поддерживается.
+
+`audit_visualizers(path)` возвращает `ok` и список `issues`
+(`empty_columns`, `empty_series`, `missing_duplicate_flags`, `unknown_column`,
+`quality_shape`, `quality_virgin`).

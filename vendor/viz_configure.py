@@ -40,16 +40,35 @@ def field_enum8(name: str, value: int) -> bytes:
 def _empty_obj(name: str) -> bytes:
     return s(name) + b"\x00\x00\x00"
 
-DT = {"dtDateTime": 2, "dtFloat": 3, "dtInteger": 4, "dtString": 5}
+DT = {
+    "dtBoolean": 1,
+    "dtDateTime": 2,
+    "dtFloat": 3,
+    "dtInteger": 4,
+    "dtString": 5,
+}
 LK_X, LK_Y, LK_LABELS = 1, 2, 6
-CT_COLUMNS = 3
+SERIES_KIND = {"ctArea": 1, "ctSpline": 2, "ctColumns": 3}
 AP_LEFT, AP_RIGHT = 1, 2
+SORT_DIR = {"sdAsc": 0, "asc": 0, "sdDesc": 1, "desc": 1}
 
 Col = tuple[str, str, str]  # (Name, DisplayName, DataType)
+SortCol = tuple[str, str]  # (Name, sdAsc|sdDesc)
+
+# Same four columns the Duplicates node appends to its output.
+DUPLICATE_FLAGS: list[Col] = [
+    ("Duplicate", "Дубликат", "dtBoolean"),
+    ("DuplicateGroup", "Группа дубликата", "dtInteger"),
+    ("Contradiction", "Противоречие", "dtBoolean"),
+    ("ContradictionGroup", "Группа противоречия", "dtInteger"),
+]
 
 QUALITY_ENGINE_XML = (
     '<Engine xsi:type="TBGQualityView">'
-    "<CommonConfigs/><CalculationSettings/>"
+    "<CommonConfigs/>"
+    "<ColumnsStats/>"
+    "<CalculationSettings/>"
+    "<PreviewDetailing/>"
     "<CommonColumnConfigs>"
     '<Item ID="0"/><Item ID="1"/><Item ID="2"/><Item ID="3"/><Item ID="4"/>'
     "</CommonColumnConfigs>"
@@ -74,21 +93,71 @@ def _attr_item(
     return b"\x00" + bytes([n]) + attrs + bytes([child_n]) + children
 
 
-def browse_xml(cols: list[Col], engine: str = "TBGBrowseView") -> str:
+def _xml_attr(value: str) -> str:
+    return (
+        value.replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("<", "&lt;")
+    )
+
+
+def _sort_xml(sort: list[SortCol] | None) -> str:
+    if not sort:
+        return "<Sorting/>"
+    items = []
+    for name, direction in sort:
+        xml_dir, _ = _sort_pair(direction)
+        items.append(
+            f'<Item Name="{_xml_attr(name)}" SortDirection="{xml_dir}"/>'
+        )
+    return f"<Sorting><SortingColumns>{''.join(items)}</SortingColumns></Sorting>"
+
+
+def _sort_pair(direction: str) -> tuple[str, int]:
+    key = (direction or "sdAsc").strip()
+    if key not in SORT_DIR:
+        raise ValueError(f"sort direction {direction!r}; use sdAsc or sdDesc")
+    xml_dir = "sdDesc" if SORT_DIR[key] else "sdAsc"
+    return xml_dir, SORT_DIR[key]
+
+
+def _sorting_blob(sort: list[SortCol] | None) -> bytes:
+    if not sort:
+        return empty_list("Sorting")
+    items = []
+    for name, direction in sort:
+        _, enum = _sort_pair(direction)
+        attrs = field_str("Name", name) + field_enum8("SortDirection", enum)
+        items.append(_attr_item(attrs, 2))
+    return s("Sorting") + b"\x00\x00\x01" + list_of_items("SortingColumns", items)
+
+
+def browse_xml(
+    cols: list[Col],
+    engine: str = "TBGBrowseView",
+    sort: list[SortCol] | None = None,
+) -> str:
     body = "".join(
-        f'<Item Name="{n}" DisplayName="{d}" DataType="{t}"/>' for n, d, t in cols
+        f'<Item Name="{_xml_attr(n)}" DisplayName="{_xml_attr(d)}" DataType="{t}"/>'
+        for n, d, t in cols
     )
     return (
         f'<Engine xsi:type="{engine}">'
         f"<ViewColumns>{body}</ViewColumns>"
-        "<Filtering/><Grouping/><Sorting/><Options/>"
+        f"<Filtering/><Grouping/>{_sort_xml(sort)}<Options/>"
         "</Engine>"
     )
 
 
-def browse_blob(cols: list[Col], engine: str = "TBGBrowseView") -> bytes:
+def browse_blob(
+    cols: list[Col],
+    engine: str = "TBGBrowseView",
+    sort: list[SortCol] | None = None,
+) -> bytes:
     items = []
     for n, d, t in cols:
+        if t not in DT:
+            raise ValueError(f"unsupported DataType {t!r} for {n}")
         attrs = (
             field_str("Name", n)
             + field_str("DisplayName", d)
@@ -102,7 +171,7 @@ def browse_blob(cols: list[Col], engine: str = "TBGBrowseView") -> bytes:
         + list_of_items("ViewColumns", items)
         + empty_list("Filtering")
         + empty_list("Grouping")
-        + empty_list("Sorting")
+        + _sorting_blob(sort)
         + _empty_obj("Options")
     )
 
@@ -123,9 +192,11 @@ def quality_blob() -> bytes:
     return (
         s("Engine")
         + s("TBGQualityView")
-        + b"\x00\x06"
+        + b"\x00\x08"
         + _empty_obj("CommonConfigs")
+        + empty_list("ColumnsStats")
         + _empty_obj("CalculationSettings")
+        + _empty_obj("PreviewDetailing")
         + list_of_items("CommonColumnConfigs", [id_item(i) for i in range(5)])
         + list_of_items(
             "IndicatorColumnConfigs",
@@ -140,16 +211,26 @@ def quality_blob() -> bytes:
     )
 
 
-def chart_xml(labels: Col, series: list[Col]) -> str:
+def chart_xml(
+    labels: Col,
+    series: list[Col],
+    series_guids: list[str] | None = None,
+    series_type: str = "ctColumns",
+) -> str:
+    if series_type not in SERIES_KIND:
+        raise ValueError(f"series type {series_type!r}")
     lab_name, _, lab_dt = labels
+    guids = series_guids or [str(uuid.uuid4()) for _ in series]
+    if len(guids) != len(series):
+        raise ValueError("series_guids length must match series")
     ser_xml = []
-    for name, display, dt in series:
-        gid = str(uuid.uuid4())
+    for gid, (name, display, dt) in zip(guids, series):
         ser_xml.append(
-            f'<Item Guid="{gid}" DisplayName="{display}" Series="ctColumns">'
+            f'<Item Guid="{gid}" DisplayName="{_xml_attr(display)}" '
+            f'Series="{series_type}">'
             f"<Color/><Links>"
             f'<Item Name="lkYData" FieldType="{dt}" LinkKind="lkYData" '
-            f'FieldName="{name}"/>'
+            f'FieldName="{_xml_attr(name)}"/>'
             f"</Links></Item>"
         )
     return (
@@ -159,7 +240,7 @@ def chart_xml(labels: Col, series: list[Col]) -> str:
         "<Links>"
         '<Item Name="lkXData" LinkKind="lkXData"/>'
         f'<Item Name="lkLabels" FieldType="{lab_dt}" LinkKind="lkLabels" '
-        f'FieldName="{lab_name}"/>'
+        f'FieldName="{_xml_attr(lab_name)}"/>'
         "</Links>"
         f"<Series>{''.join(ser_xml)}</Series>"
         "<Axes>"
@@ -172,8 +253,18 @@ def chart_xml(labels: Col, series: list[Col]) -> str:
     )
 
 
-def chart_blob(labels: Col, series: list[Col]) -> bytes:
+def chart_blob(
+    labels: Col,
+    series: list[Col],
+    series_guids: list[str] | None = None,
+    series_type: str = "ctColumns",
+) -> bytes:
+    if series_type not in SERIES_KIND:
+        raise ValueError(f"series type {series_type!r}")
     lab_name, _, lab_dt = labels
+    guids = series_guids or [str(uuid.uuid4()) for _ in series]
+    if len(guids) != len(series):
+        raise ValueError("series_guids length must match series")
     links = list_of_items(
         "Links",
         [
@@ -190,7 +281,7 @@ def chart_blob(labels: Col, series: list[Col]) -> bytes:
         ],
     )
     ser_items = []
-    for name, display, dt in series:
+    for gid, (name, display, dt) in zip(guids, series):
         y_link = list_of_items(
             "Links",
             [
@@ -205,9 +296,9 @@ def chart_blob(labels: Col, series: list[Col]) -> bytes:
         )
         ser_items.append(
             _attr_item(
-                field_guid("Guid", uuid.uuid4())
+                field_guid("Guid", uuid.UUID(gid))
                 + field_str("DisplayName", display)
-                + field_enum8("Series", CT_COLUMNS),
+                + field_enum8("Series", SERIES_KIND[series_type]),
                 3,
                 _empty_obj("Color") + y_link,
                 2,
@@ -358,16 +449,25 @@ def patch_package(lgp: Path | str, jobs: list[Job], *, quiet: bool = False) -> N
         print("  OK", lgp.stat().st_size)
 
 
-def table_job(guid: str, cols: list[Col]) -> Job:
-    return (guid, "TBGBrowseView", browse_xml(cols), browse_blob(cols))
+def table_job(
+    guid: str, cols: list[Col], sort: list[SortCol] | None = None
+) -> Job:
+    return (
+        guid,
+        "TBGBrowseView",
+        browse_xml(cols, sort=sort),
+        browse_blob(cols, sort=sort),
+    )
 
 
-def duplicates_job(guid: str, cols: list[Col]) -> Job:
+def duplicates_job(
+    guid: str, cols: list[Col], sort: list[SortCol] | None = None
+) -> Job:
     return (
         guid,
         "TBGDuplicatesView",
-        browse_xml(cols, "TBGDuplicatesView"),
-        browse_blob(cols, "TBGDuplicatesView"),
+        browse_xml(cols, "TBGDuplicatesView", sort=sort),
+        browse_blob(cols, "TBGDuplicatesView", sort=sort),
     )
 
 
@@ -375,10 +475,16 @@ def quality_job(guid: str) -> Job:
     return (guid, "TBGQualityView", quality_xml(), quality_blob())
 
 
-def chart_job(guid: str, labels: Col, series: list[Col]) -> Job:
+def chart_job(
+    guid: str,
+    labels: Col,
+    series: list[Col],
+    series_type: str = "ctColumns",
+) -> Job:
+    guids = [str(uuid.uuid4()) for _ in series]
     return (
         guid,
         "TBGChartView",
-        chart_xml(labels, series),
-        chart_blob(labels, series),
+        chart_xml(labels, series, guids, series_type),
+        chart_blob(labels, series, guids, series_type),
     )

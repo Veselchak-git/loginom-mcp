@@ -233,6 +233,8 @@ python3 -m pip install -r requirements.txt
 | `configure_node` | ColumnDefs + filter / calculator / sort / join / import / outliers / grouping |
 | `link_nodes` | Связать порты (`data`, `else`, …) |
 | `add_visualizer` | Повесить **virgin**-визуализатор (пустые Series / ViewColumns / Dimensions) |
+| `configure_visualizer` | Колонки таблицы и дубликатов, серии диаграммы, индикаторы качества (сессия или `path` к `.lgp`) |
+| `audit_visualizers` | Проверить сохранённый `.lgp`: пустые виды, чужие поля, нет флагов дубликатов |
 | `rename_node` | Переименовать узел или визуализатор |
 | `get_package` | Состояние текущей сессии |
 | `inspect_lgp` | Разобрать существующий `.lgp` с диска |
@@ -241,24 +243,20 @@ python3 -m pip install -r requirements.txt
 
 **Resources:** `loginom://docs/visualizers`, `loginom://docs/agents`, `loginom://docs/contributing`, `loginom://docs/roadmap`.
 
-**Ещё в репозитории (не MCP-tools):** `vendor/` (BGB/XML + `viz_configure.py`), `tools/inspect_viz.py`, `docs/`.
+**Ещё в репозитории:** `vendor/` (BGB/XML, `viz_configure.py`, `viz_audit.py`), `tools/inspect_viz.py`, `tools/audit_viz.py`, `docs/`.
 
 Полный список «чего ещё нет» для агентов: **[docs/AGENTS.md](docs/AGENTS.md)** (секция *Missing tools*) и [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Визуализаторы
 
-`add_visualizer` вешает на узел только **virgin**-представление (пустые серии/измерения/колонки).  
-Инструмента **`configure_visualizer` пока нет** — это главный gap для контрибьюторов.
+`add_visualizer` вешает **virgin**-представление. Перед сохранением вызовите
+`configure_visualizer` (таблица, дубликаты, диаграмма, качество). `save_package`
+записывает эту настройку в XML и BIN и не затирает её при повторном сохранении.
 
-Для готового пакета после `save_package` нужно настроить визуализаторы в `.lgp`:
+Уже собранный файл можно поправить аргументом `path` и проверить через
+`audit_visualizers`. Куб пока остаётся пустым.
 
-1. Править `Unit_0/Unit.xml` и синхронно `Unit_0/Unit.bin` (Loginom читает BIN), либо использовать `vendor/viz_configure.py`.
-2. Диаграмма: `lkLabels` + `FieldName`, непустой `<Series>` (`ctColumns` и т.п.).
-3. Куб: `Dimensions` (`cdtRows` / `cdtCols` / `cdtFree`) + факты в `Summaries/Cases`.
-4. Таблица: непустой `<ViewColumns>` с нужными полями.
-5. Не вызывать повторный `save_package` из той же MCP-сессии — перезапишет virgin.
-
-Полные шаблоны, ordinals BGB и чек-лист: **[docs/VISUALIZERS.md](docs/VISUALIZERS.md)**.
+Полные шаблоны и чек-лист: **[docs/VISUALIZERS.md](docs/VISUALIZERS.md)**.
 
 ## Замечания
 

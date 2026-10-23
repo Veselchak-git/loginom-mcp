@@ -52,10 +52,11 @@ pull requests / merge requests.
 | `loginom_mcp/components.py`, `node_xml.py`, `engine_config.py` | Registry + virgin engines |
 | `loginom_mcp/column_config.py`, `loginom_ident.py` | ColumnDefs XML+BGB |
 | `loginom_mcp/visualizers.py` | Virgin ModelViews |
-| `vendor/viz_configure.py` | **Configured** visualizer engines (post-save patch) |
+| `vendor/viz_configure.py` | **Configured** visualizer engines (session save + file patch) |
+| `vendor/viz_audit.py` | Check views in a saved `.lgp` |
 | `vendor/bgb_*.py`, `vendor/g6_blobs/` | Low-level BGB/XML templates |
 | `vendor/verify_lgp.py` | ZIP/XML/BGB (+ optional Loginom UI) verify |
-| `tools/inspect_viz.py` | CLI: virgin vs configured views |
+| `tools/inspect_viz.py`, `tools/audit_viz.py` | CLI: virgin vs configured views, field-name audit |
 | `docs/` | AGENTS, CONTRIBUTING, ROADMAP, VISUALIZERS |
 | `examples/` | Host config templates |
 
