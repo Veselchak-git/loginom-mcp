@@ -182,6 +182,8 @@ class NodeRec:
     join_type: str | int | None = None
     join_keys: list | None = None
     import_settings: dict | None = None
+    engine_settings: dict | None = None
+    parent_id: str | None = None
 
 
 @dataclass
@@ -296,6 +298,7 @@ def add_node(
     left: float | None = None,
     top: float | None = None,
     file_name: str = "data.csv",
+    parent: str | None = None,
 ) -> dict:
     s = get_session()
     if component not in COMPONENTS:
@@ -324,6 +327,11 @@ def add_node(
         top=float(top),
         file_name=file_name,
     )
+    if parent:
+        host = s.find_node(parent)
+        if host.component != "submodel":
+            raise ValueError("parent must be a submodel node")
+        rec.parent_id = host.id
     s.nodes.append(rec)
     info = COMPONENTS[component]
     return {
@@ -357,6 +365,7 @@ def configure_node(
     join_type: str | int | None = None,
     join_keys: list | None = None,
     import_settings: dict | None = None,
+    engine_settings: dict | None = None,
 ) -> dict:
     """Set input ColumnDefs and/or engine settings on a node.
 
@@ -370,8 +379,19 @@ def configure_node(
       outliers — ordered_sample=True for ordered sample
       join — join_type=\"left\"|\"inner\"|..., join_keys=[{\"left\":\"Tovar_Kod\",\"right\":\"Tovar_Kod\"}]
       import_text / import_excel — import_settings={file_name?, code_page?/encoding?,
-        decimal_separator?, date_format?, date_separator?, sheet_number?, columns?}
-        Note: Loginom does not store delimiter/quote/skip_rows in .lgp.
+        delimiter?, decimal_separator?, date_format?, date_separator?, sheet_number?, columns?}
+        Quote and skip_rows are not stored in .lgp.
+      calc_variables — expressions=[{name, expression, data_type?, display_name?}]
+      cluster — engine_settings={n_clusters, auto_select?, rand_seed?}
+      corr_analysis — engine_settings={corr_types: caPirson or a 16-bit mask}
+      lin_regression — engine_settings={method: linregEnter, rand_seed?}
+      log_regression — engine_settings={rand_seed?}
+      nn_regress / nn_classify — engine_settings={hidden_layers?, decay?, max_epochs?,
+        structure_autofit?, use_initial_structure?, decay_autofit?, use_initial_decay?,
+        rand_seed?}
+      loop — engine_settings={reference, loop_kind?, append_iteration_identifiers?,
+        condition: {name, socket, value?},
+        mappings: [{left, left_socket, right, right_socket}]}
 
     Or pass columns=[{name, usage, data_type?, data_kind?, aggs?, order?}].
     For import_* nodes, columns= without usage goes into Engine ColumnDefs via import_settings.
@@ -483,8 +503,8 @@ def configure_node(
             raise ValueError("filter_items only valid for filter nodes")
         n.filter_items = filter_items
     if expressions is not None:
-        if n.component != "calculator":
-            raise ValueError("expressions only valid for calculator nodes")
+        if n.component not in ("calculator", "calc_variables"):
+            raise ValueError("expressions only valid for calculator or calc_variables")
         n.expressions = expressions
     if sort_columns is not None:
         if n.component != "sorting":
@@ -529,6 +549,22 @@ def configure_node(
             merged["columns"] = norm
         n.import_settings = merged
 
+    if engine_settings is not None:
+        if n.component not in (
+            "cluster",
+            "corr_analysis",
+            "lin_regression",
+            "log_regression",
+            "nn_regress",
+            "nn_classify",
+            "loop",
+        ):
+            raise ValueError(
+                "engine_settings is implemented for cluster, corr_analysis, "
+                "lin_regression, log_regression, nn_regress, nn_classify, loop"
+            )
+        n.engine_settings = engine_settings
+
     if (
         not touched_columns
         and filter_items is None
@@ -538,6 +574,7 @@ def configure_node(
         and join_type is None
         and join_keys is None
         and import_settings is None
+        and engine_settings is None
         and not (
             n.component in ("import_text", "import_excel")
             and columns is not None
@@ -546,7 +583,7 @@ def configure_node(
         raise ValueError(
             "nothing to configure: pass columns/inputs/groups or "
             "filter_items/expressions/sort_columns/ordered_sample/"
-            "join_type/join_keys/import_settings"
+            "join_type/join_keys/import_settings/engine_settings"
         )
 
     return {
@@ -570,6 +607,7 @@ def configure_node(
         "join_type": n.join_type,
         "join_keys": n.join_keys,
         "import_settings": n.import_settings,
+        "engine_settings": n.engine_settings,
         "file_name": n.file_name,
     }
 
@@ -599,6 +637,10 @@ def link_nodes(
     s = get_session()
     src = s.find_node(source_node)
     tgt = s.find_node(target_node)
+    if src.parent_id != tgt.parent_id:
+        raise ValueError(
+            "link both nodes at the same level: inside one submodel, or both on the root workflow"
+        )
     sp_name, sp_guid = _resolve_port(src, source_port, "out")
     tp_name, tp_guid = _resolve_port(tgt, target_port, "in")
     rec = LinkRec(
@@ -1037,7 +1079,9 @@ def _render_view(view: ViewRec) -> tuple[str, bytes]:
             guid, cfg["dimensions"], cfg["facts"], cfg.get("case_sort"), cfg.get("chart")
         )
     elif kind == "statistics":
-        job = statistics_job(guid, cfg["columns"])
+        job = statistics_job(guid, cfg["columns"], cfg.get("settings"))
+    elif kind in ("cluster_profiles", "roc", "regress_report"):
+        job = None
     else:
         cols = [tuple(col) for col in cfg["columns"]]
         sort = [tuple(item) for item in cfg["sort"]] if cfg.get("sort") else None
@@ -1046,6 +1090,32 @@ def _render_view(view: ViewRec) -> tuple[str, bytes]:
             job = duplicates_job(guid, cols, sort, filters)
         else:
             job = table_job(guid, cols, sort, filters)
+    if kind in ("cluster_profiles", "roc", "regress_report"):
+        from .scenario_settings import (
+            cluster_profiles_engine_blob,
+            cluster_profiles_engine_xml,
+            regress_report_engine_blob,
+            regress_report_engine_xml,
+            roc_engine_blob,
+            roc_engine_xml,
+        )
+
+        if kind == "cluster_profiles":
+            job = (
+                guid,
+                "TBGClusterProfilesView",
+                cluster_profiles_engine_xml(cfg.get("settings")),
+                cluster_profiles_engine_blob(cfg.get("settings")),
+            )
+        elif kind == "roc":
+            job = (guid, "TBGROCView", roc_engine_xml(cfg.get("charts")), roc_engine_blob(cfg.get("charts")))
+        else:
+            job = (
+                guid,
+                cfg["engine"],
+                regress_report_engine_xml(cfg["engine"], cfg["sort_order"], cfg["sort_direction"]),
+                regress_report_engine_blob(cfg["engine"], cfg["sort_order"], cfg["sort_direction"]),
+            )
     xml = patch_xml_engine(xml, guid, job[2])
     start, end = find_engine_span(blob, guid, job[1])
     blob = blob[:start] + job[3] + blob[end:]
@@ -1067,6 +1137,7 @@ def configure_visualizer(
     facts: list | None = None,
     case_sort: dict | None = None,
     cube_chart: dict | None = None,
+    view_settings: dict | None = None,
 ) -> dict:
     """Configure a table, chart, cube, statistics, quality, or duplicates visualizer.
 
@@ -1091,6 +1162,7 @@ def configure_visualizer(
             facts=facts,
             case_sort=case_sort,
             cube_chart=cube_chart,
+            view_settings=view_settings,
         )
     rec = _find_view(view)
     lookup = _session_column_index(rec.source_node)
@@ -1108,6 +1180,7 @@ def configure_visualizer(
         facts=facts,
         case_sort=case_sort,
         cube_chart=cube_chart,
+        view_settings=view_settings,
         existing_columns=None,
     )
     return {
@@ -1136,8 +1209,22 @@ def _build_view_config(
     facts: list | None,
     case_sort: dict | None,
     cube_chart: dict | None,
+    view_settings: dict | None,
     existing_columns: list[tuple[str, str, str]] | None,
 ) -> dict:
+    if visualizer == "cluster_profiles":
+        return {"kind": "cluster_profiles", "settings": view_settings or {}}
+    if visualizer == "roc":
+        charts = None if not view_settings else view_settings.get("charts")
+        return {"kind": "roc", "charts": charts}
+    if visualizer in ("lin_regress_report", "log_regress_report"):
+        vs = view_settings or {}
+        return {
+            "kind": "regress_report",
+            "engine": VISUALIZERS[visualizer].engine,
+            "sort_order": vs.get("sort_order", "rsoIndex"),
+            "sort_direction": vs.get("sort_direction", "sdAsc"),
+        }
     if visualizer == "quality":
         return {"kind": "quality"}
     if visualizer == "cube":
@@ -1157,7 +1244,11 @@ def _build_view_config(
         ]
         if not specs:
             raise ValueError("statistics requires columns")
-        return {"kind": "statistics", "columns": _normalize_stat_columns(specs, lookup)}
+        return {
+            "kind": "statistics",
+            "columns": _normalize_stat_columns(specs, lookup),
+            "settings": view_settings or {},
+        }
     if visualizer == "chart":
         if labels_field is None or not y_fields:
             raise ValueError("chart requires labels_field and y_fields")
@@ -1207,6 +1298,7 @@ def _configure_saved_visualizer(
     facts: list | None = None,
     case_sort: dict | None = None,
     cube_chart: dict | None = None,
+    view_settings: dict | None = None,
 ) -> dict:
     import zipfile
 
@@ -1234,6 +1326,10 @@ def _configure_saved_visualizer(
         "TBGQualityView": "quality",
         "TBGCubeView": "cube",
         "TBGStatView": "statistics",
+        "TBGClusterProfilesView": "cluster_profiles",
+        "TBGROCView": "roc",
+        "TBGLinRegressReport": "lin_regress_report",
+        "TBGLogRegressReport": "log_regress_report",
     }.get(engine)
     if key is None:
         raise ValueError(f"engine {engine} is not configurable yet")
@@ -1251,6 +1347,7 @@ def _configure_saved_visualizer(
         facts=facts,
         case_sort=case_sort,
         cube_chart=cube_chart,
+        view_settings=view_settings,
         existing_columns=existing,
     )
     if cfg["kind"] == "quality":
@@ -1267,7 +1364,42 @@ def _configure_saved_visualizer(
             guid, cfg["dimensions"], cfg["facts"], cfg.get("case_sort"), cfg.get("chart")
         )
     elif cfg["kind"] == "statistics":
-        job = statistics_job(guid, cfg["columns"])
+        job = statistics_job(guid, cfg["columns"], cfg.get("settings"))
+    elif cfg["kind"] in ("cluster_profiles", "roc", "regress_report"):
+        from .scenario_settings import (
+            cluster_profiles_engine_blob,
+            cluster_profiles_engine_xml,
+            regress_report_engine_blob,
+            regress_report_engine_xml,
+            roc_engine_blob,
+            roc_engine_xml,
+        )
+
+        if cfg["kind"] == "cluster_profiles":
+            job = (
+                guid,
+                "TBGClusterProfilesView",
+                cluster_profiles_engine_xml(cfg.get("settings")),
+                cluster_profiles_engine_blob(cfg.get("settings")),
+            )
+        elif cfg["kind"] == "roc":
+            job = (
+                guid,
+                "TBGROCView",
+                roc_engine_xml(cfg.get("charts")),
+                roc_engine_blob(cfg.get("charts")),
+            )
+        else:
+            job = (
+                guid,
+                cfg["engine"],
+                regress_report_engine_xml(
+                    cfg["engine"], cfg["sort_order"], cfg["sort_direction"]
+                ),
+                regress_report_engine_blob(
+                    cfg["engine"], cfg["sort_order"], cfg["sort_direction"]
+                ),
+            )
     else:
         cols = [tuple(col) for col in cfg["columns"]]
         sort_cols = [tuple(item) for item in cfg["sort"]] if cfg.get("sort") else None
@@ -1365,9 +1497,8 @@ def save_package() -> dict:
     staging.mkdir(parents=True)
     (staging / "Unit_0").mkdir()
 
-    node_bins: list[bytes] = []
-    nodes_xml: list[str] = []
     guid_by_id = {n.id: n.guid for n in s.nodes}
+    built: dict[str, tuple[bytes, str]] = {}
 
     for n in s.nodes:
         builder = BUILDERS[n.component]
@@ -1391,6 +1522,7 @@ def save_package() -> dict:
             or n.join_type is not None
             or n.join_keys is not None
             or n.import_settings is not None
+            or (n.engine_settings is not None and n.component != "loop")
         ):
             blob, xml = apply_engine_settings(
                 blob,
@@ -1404,22 +1536,80 @@ def save_package() -> dict:
                 import_settings=n.import_settings,
                 import_component=n.component if n.import_settings else None,
                 file_name=n.file_name,
+                component=n.component,
+                engine_settings=None if n.component == "loop" else n.engine_settings,
             )
-        node_bins.append(blob)
-        nodes_xml.append(xml)
+        if n.component == "loop" and n.engine_settings:
+            from .scenario_settings import apply_loop_settings
 
-    link_bins: list[bytes] = []
-    link_dicts: list[dict] = []
-    for lk in s.links:
-        link_bins.append(
-            imp.build_link_item(
-                lk.guid,
-                guid_by_id[lk.source_node],
-                uuid.UUID(lk.source_port),
-                guid_by_id[lk.target_node],
-                uuid.UUID(lk.target_port),
+            ref = s.find_node(str(n.engine_settings["reference"]))
+            blob, xml = apply_loop_settings(
+                blob, xml, n.engine_settings, str(ref.guid)
             )
+        built[n.id] = (blob, xml)
+
+    from .scenario_settings import nest_workflow
+
+    parent_of = {n.id: n.parent_id for n in s.nodes}
+    links_by_parent: dict[str | None, list] = {}
+    for lk in s.links:
+        host = parent_of[lk.source_node]
+        links_by_parent.setdefault(host, []).append(lk)
+
+    def _link_pair(lk: LinkRec) -> tuple[bytes, str]:
+        blob = imp.build_link_item(
+            lk.guid,
+            guid_by_id[lk.source_node],
+            uuid.UUID(lk.source_port),
+            guid_by_id[lk.target_node],
+            uuid.UUID(lk.target_port),
         )
+        xml = (
+            f'<Item Guid="{lk.guid}">'
+            f'<SourcePort NodeGuid="{guid_by_id[lk.source_node]}" PortGuid="{lk.source_port}"/>'
+            f'<TargetPort NodeGuid="{guid_by_id[lk.target_node]}" PortGuid="{lk.target_port}"/>'
+            "</Item>"
+        )
+        return blob, xml
+
+    pending = {n.id for n in s.nodes if n.parent_id}
+    guard = 0
+    while pending:
+        guard += 1
+        if guard > len(s.nodes) + 2:
+            raise ValueError("submodel parent cycle")
+        ready_hosts = []
+        for host in s.nodes:
+            kids = [c for c in s.nodes if c.parent_id == host.id and c.id in pending]
+            if not kids:
+                continue
+            if any(any(g.parent_id == c.id and g.id in pending for g in s.nodes) for c in kids):
+                continue
+            ready_hosts.append(host)
+        if not ready_hosts:
+            raise ValueError("submodel parent cycle")
+        for host in ready_hosts:
+            kids = [c for c in s.nodes if c.parent_id == host.id]
+            pairs = [_link_pair(lk) for lk in links_by_parent.get(host.id, [])]
+            host_blob, host_xml = built[host.id]
+            built[host.id] = nest_workflow(
+                host_blob,
+                host_xml,
+                [built[c.id][0] for c in kids],
+                [built[c.id][1] for c in kids],
+                [p[0] for p in pairs],
+                [p[1] for p in pairs],
+            )
+            for c in kids:
+                pending.discard(c.id)
+
+    node_bins = [built[n.id][0] for n in s.nodes if n.parent_id is None]
+    nodes_xml = [built[n.id][1] for n in s.nodes if n.parent_id is None]
+    link_bins = []
+    link_dicts = []
+    for lk in links_by_parent.get(None, []):
+        blob, _xml = _link_pair(lk)
+        link_bins.append(blob)
         link_dicts.append(
             {
                 "guid": lk.guid,
@@ -1445,7 +1635,7 @@ def save_package() -> dict:
                 guid_by_id[v.source_node],
                 uuid.UUID(v.source_port_guid),
                 v.guid,
-                VIEW_PORT_DS_IN,
+                uuid.UUID(VISUALIZERS[v.visualizer].input_guid),
             )
         )
         view_link_dicts.append(
@@ -1454,7 +1644,7 @@ def save_package() -> dict:
                 "source_node": guid_by_id[v.source_node],
                 "target_node": v.guid,
                 "source_port": v.source_port_guid,
-                "target_port": str(VIEW_PORT_DS_IN),
+                "target_port": VISUALIZERS[v.visualizer].input_guid,
             }
         )
 

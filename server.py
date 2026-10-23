@@ -29,7 +29,14 @@ audit_visualizers(path) checks a saved .lgp for empty views and wrong field name
 CRITICAL — visualizers: add_visualizer attaches a VIRGIN view (empty Series / \
 Dimensions / ViewColumns). configure_visualizer fills table/duplicates columns, \
 filters and sort, chart labels+series, cube dimensions/facts, statistics columns, \
-and quality indicators. save_package writes XML and BIN together. A hand-patched \
+quality indicators, cluster profiles (indicator, heat map, filters), statistics \
+flags, ROC charts, and regression reports. import_settings.delimiter stores \
+the text-file field separator. \
+configure_node engine_settings covers cluster count, correlation type, \
+linear-regression method, neural-net training params, and a loop that \
+references a submodel. add_node parent places a node inside a submodel. \
+save_package writes \
+XML and BIN together. A hand-patched \
 .lgp must not be overwritten by save_package from a session that does not hold \
 that config. Recipes: loginom://docs/visualizers.
 
@@ -91,6 +98,7 @@ def add_node(
     left: float | None = None,
     top: float | None = None,
     file_name: str = "data.csv",
+    parent: str | None = None,
 ) -> str:
     """Add a virgin node to the current package session.
 
@@ -101,6 +109,7 @@ def add_node(
         left: Canvas X (auto-increment if omitted).
         top: Canvas Y.
         file_name: For import_* nodes — source file path/name inside the node.
+        parent: Submodel node id. The new node is placed inside that submodel.
     """
     return _ok(
         api.add_node(
@@ -110,6 +119,7 @@ def add_node(
             left=left,
             top=top,
             file_name=file_name,
+            parent=parent,
         )
     )
 
@@ -192,8 +202,9 @@ def configure_visualizer(
     facts: list | None = None,
     case_sort: dict | None = None,
     cube_chart: dict | None = None,
+    view_settings: dict | None = None,
 ) -> str:
-    """Fill a table, duplicates view, chart, cube, statistics, or quality visualizer.
+    """Fill a table, duplicates view, chart, cube, statistics, quality, cluster-profile, ROC, or regression-report visualizer.
 
     Session mode (no path): remembered until save_package, which writes Unit.xml
     and Unit.bin together. A later save_package keeps this config.
@@ -223,6 +234,13 @@ def configure_visualizer(
             or {name: "CountCase", count_case: true}.
         case_sort: {name, data_type?, function?: sum}.
         cube_chart: {source, title?, width?: 300, position?: rows|cols}.
+        view_settings: cluster_profiles {histogram_scaling?: hsSizeScale,
+            indicator?: cpitMin|cpitClusterCenter, importance_heat_map?,
+            filter_cluster?, filter_column?, filter_cell?,
+            show_total_histogram?, show_comparison?}.
+            statistics {show_histogram?, statistics_in_rows?} together with columns.
+            roc uses the standard chart set from the course scenarios (optional charts list).
+            Regression reports: {sort_order?: rsoIndex, sort_direction?: sdAsc|sdDesc}.
     """
     return _ok(
         api.configure_visualizer(
@@ -239,6 +257,7 @@ def configure_visualizer(
             facts=facts,
             case_sort=case_sort,
             cube_chart=cube_chart,
+            view_settings=view_settings,
         )
     )
 
@@ -286,6 +305,7 @@ def configure_node(
     join_type: str | int | None = None,
     join_keys: list | None = None,
     import_settings: dict | None = None,
+    engine_settings: dict | None = None,
 ) -> str:
     """Configure ColumnDefs and/or engine settings on a node.
 
@@ -300,6 +320,13 @@ def configure_node(
       ordered_sample — ordered outliers flag
       join_type / join_keys — Слияние (left/inner/right/full/diff + key pairs)
       import_settings — import_text / import_excel (code page, separators, sheet, columns)
+      engine_settings — cluster {n_clusters, auto_select?, rand_seed?};
+        corr_analysis {corr_types}; lin_regression {method, rand_seed?};
+        nn_regress/nn_classify {hidden_layers?, decay?, max_epochs?, rand_seed?}
+      loop {reference, loop_kind?: lkRepeat, append_iteration_identifiers?,
+        condition: {name, socket, value?}, mappings: [{left, left_socket, right, right_socket}]}
+
+    expressions also configure calc_variables (variable formulas, not column formulas).
 
     Args:
         node: node_id, display_name, or guid.
@@ -324,9 +351,10 @@ def configure_node(
         join_keys: [{left, right}] or [{main, joined}] key column pairs.
         import_settings: for import_text / import_excel:
             file_name, code_page|encoding (1251, 65001, utf-8, windows-1251),
-            decimal_separator, date_format, date_separator, columns_required,
-            sheet_number (excel), columns=[{name, data_type?, data_kind?}].
-            Delimiter/quote/skip_rows are NOT stored by Loginom in .lgp.
+            delimiter (one character, e.g. ";"), decimal_separator, date_format,
+            date_separator, columns_required, sheet_number (excel),
+            columns=[{name, data_type?, data_kind?}].
+            Quote and skip_rows are not stored by Loginom in .lgp.
     """
     return _ok(
         api.configure_node(
@@ -346,6 +374,7 @@ def configure_node(
             join_type=join_type,
             join_keys=join_keys,
             import_settings=import_settings,
+            engine_settings=engine_settings,
         )
     )
 

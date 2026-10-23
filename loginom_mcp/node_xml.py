@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import uuid
-from pathlib import Path
 from xml.sax.saxutils import escape
 
+from .paths import VENDOR
 from .components import (
     P_DATASET,
     P_DS_ELSE,
@@ -746,7 +746,7 @@ def node_xml(
 \t\t\t</Item>"""
 
     # G6: patch virgin XML templates from vendored g6_blobs
-    g6_xml = Path(__file__).resolve().parent / "vendor" / "g6_blobs" / f"{component}.xml"
+    g6_xml = VENDOR / "g6_blobs" / f"{component}.xml"
     if g6_xml.exists():
         import re
 

@@ -229,11 +229,11 @@ python3 -m pip install -r requirements.txt
 | `list_loginom_components` | Ключи компонентов для `add_node` |
 | `list_visualizers` | Ключи визуализаторов для `add_visualizer` |
 | `create_package` | Новая in-memory сессия пакета |
-| `add_node` | Добавить virgin-узел на холст |
-| `configure_node` | ColumnDefs + filter / calculator / sort / join / import / outliers / grouping |
+| `add_node` | Virgin-узел. `parent` кладёт его внутрь подмодели |
+| `configure_node` | ColumnDefs + filter / calculator / variable formulas / sort / join / import (включая разделитель) / outliers / grouping / cluster count / correlation / regression method / neural-net params / loop condition and variable map |
 | `link_nodes` | Связать порты (`data`, `else`, …) |
 | `add_visualizer` | Повесить **virgin**-визуализатор (пустые Series / ViewColumns / Dimensions) |
-| `configure_visualizer` | Таблица и дубликаты (колонки, сортировка, фильтр), диаграмма, куб, статистика, качество (сессия или `path` к `.lgp`) |
+| `configure_visualizer` | Таблица, дубликаты, диаграмма, куб, статистика (гистограмма, показатели по строкам), качество, профили кластеров (индикатор, фильтры), ROC, отчёты регрессии |
 | `audit_visualizers` | Проверить сохранённый `.lgp`: пустые виды, чужие поля, нет флагов дубликатов |
 | `rename_node` | Переименовать узел или визуализатор |
 | `get_package` | Состояние текущей сессии |

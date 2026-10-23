@@ -14,9 +14,9 @@ the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md) in thi
 
 | Gap | Notes |
 |-----|--------|
-| Special visualizer configure | `cluster_profiles`, `roc`, `coarse_classes`, `data_tree`. Cube, statistics, table filters and sort are in `configure_visualizer` |
-| Special visualizers configure | `cluster_profiles`, `roc`, `coarse_classes`, `data_tree` |
-| Deeper `configure_node` for virgin-only components | imputation, exports, loop/submodel, modeling nodes — one engine per PR |
+| Special visualizer configure | `coarse_classes`, `data_tree` still virgin. Cluster profiles, statistics flags, ROC, and regression reports are configurable |
+| Special visualizers configure | `coarse_classes` and `data_tree` still virgin |
+| Deeper `configure_node` for virgin-only components | imputation, exports, submodel port publishing, modeling nodes — one engine per PR |
 | More / fresher `g6_blobs` | Mirror from real Loginom packages |
 
 ## Lower priority
@@ -30,7 +30,7 @@ the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md) in thi
 MCP tools: `list_loginom_components`, `list_visualizers`, `create_package`,
 `add_node`, `configure_node`, `link_nodes`, `add_visualizer`,
 `configure_visualizer` (table / duplicates filters+sort, chart, cube, statistics,
-quality, session or saved `.lgp`), `audit_visualizers`, `rename_node`, `get_package`, `inspect_lgp`,
+quality, cluster profiles, ROC, regression reports, session or saved `.lgp`), `audit_visualizers`, `rename_node`, `get_package`, `inspect_lgp`,
 `save_package`, `verify_package`.
 
 Libraries: virgin visualizers + `VISUALIZERS.md` + `vendor/viz_configure.py` +
