@@ -64,9 +64,21 @@ but have little or no dedicated engine configure beyond ColumnDefs.
   flags, fields that are not on the linked node, quality engine shape.
 
 **Still missing on visualizers:** socket `ColumnDefs` for quality field
-selection, and special views (`cluster_profiles`, `roc`, `coarse_classes`,
-`data_tree`). `Grouping` and `Options` on tables stay empty: saved packages do
-not persist a richer form. View filter `in` / `not_in` lists are not encoded.
+selection, and special views `coarse_classes` and `data_tree`.
+`cluster_profiles` (scaling, indicator, heat map, filters), `roc`, and
+linear/logistic regression reports are configurable. Statistics can store
+`ShowHistogram` and `StatisticsInRows`. `Grouping` and `Options` on tables stay
+empty: saved packages do not persist a richer form. View filter `in` / `not_in`
+lists are not encoded.
+
+`configure_node` `engine_settings` covers the pre-training knobs used in the
+elbow, clustering, and regression scenarios: cluster count, Pearson
+correlation, linear-regression enter method, neural-net hidden layer / decay /
+epochs. `expressions` also fills the variable calculator. Trained model
+bodies (centers, coefficients, coarse-class limits) are left for Loginom to
+compute. A text import stores `delimiter` when it is set. Nodes can be placed
+inside a submodel, and a loop can reference that submodel; publishing the
+submodel ports on its boundary is still missing.
 
 ## Missing tools — start here
 
@@ -90,8 +102,8 @@ types from the linked import metadata.
 
 ### 3. Visualizer extras
 
-- Special views: `cluster_profiles`, `roc`, `coarse_classes`, `data_tree`
-  (today: listable / attachable as virgin only).
+- Special views still virgin: `coarse_classes`, `data_tree`.
+  `cluster_profiles`, `roc`, and regression reports are configurable.
 - Quality socket `ColumnDefs` (which fields the quality view calculates).
 
 ### 4. Deeper `configure_node` for under-configured components
@@ -99,10 +111,12 @@ types from the linked import metadata.
 Many keys from `list_loginom_components` are virgin add only. Useful next
 engines (pick one per PR, mirror a real `.lgp`):
 
+- Submodel port publishing (inner sockets shown on the submodel boundary) and a full derived `InternalComponent` copy inside a loop. Nodes can already be placed inside a submodel, and a loop can reference it.
 - `imputation`, `smoothing`, `quantize`, `sampling`, `replace`
 - `export_*` settings
-- `loop` / `condition` / `submodel` / `reference_node`
-- Modeling nodes (`cluster`, `lin_regression`, `nn_*`, …) — large surface
+- `condition` / `reference_node`
+- Modeling nodes beyond the pre-training knobs already in `engine_settings`
+  (trained centers, coefficients, coarse-class limits)
 
 ### 5. Session / package UX (nice to have)
 

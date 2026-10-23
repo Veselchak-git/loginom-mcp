@@ -877,8 +877,10 @@ def inject_join_xml(
 
 
 # --- Import text / Excel engine settings ------------------------------------
-# Loginom does NOT persist field delimiter / quote / skip-rows in .lgp —
-# only FileName, CodePage, decimal/date separators, SheetNumber, ColumnDefs.
+# Quote and skip-rows are not stored on TBGImportTextFile.
+# DelimiterChar is stored when it is not the Loginom default (the practice
+# packages keep ";"). FileName, CodePage, decimal/date separators, SheetNumber
+# and ColumnDefs are stored as well.
 
 CODE_PAGES: dict[str, int] = {
     "utf-8": 65001,
@@ -1043,9 +1045,9 @@ def _normalize_import_settings(settings: dict[str, Any]) -> dict[str, Any]:
         out["code_page"] = out["codepage"]
     if "sheet" in out and "sheet_number" not in out:
         out["sheet_number"] = out["sheet"]
-    if "delimiter" in out or "quote" in out or "skip_rows" in out:
-        # Persisted Loginom packages never store these on TBGImportTextFile.
-        out.pop("delimiter", None)
+    if "delimiter_char" in out and "delimiter" not in out:
+        out["delimiter"] = out["delimiter_char"]
+    if "quote" in out or "skip_rows" in out:
         out.pop("quote", None)
         out.pop("skip_rows", None)
     return out
@@ -1058,22 +1060,26 @@ def build_import_text_engine_inner(
     decimal_separator: str = ".",
     date_format: str = "dd.MM.yyyy",
     date_separator: str = ".",
+    delimiter: str | None = None,
     columns_required: bool | None = False,
     columns: list[dict[str, Any]] | None = None,
 ) -> bytes:
     """Inner object starting at TBGImportTextFile (no Engine wrapper)."""
     cp = resolve_code_page(code_page)
-    attrs = (
-        field_str("FileName", file_name)
-        + field_int32("CodePage", cp)
-        + field_char("DecimalSeparator", decimal_separator)
+    attrs = field_str("FileName", file_name) + field_int32("CodePage", cp)
+    n_attr = 2
+    if delimiter is not None:
+        attrs += field_char("DelimiterChar", delimiter)
+        n_attr += 1
+    attrs += (
+        field_char("DecimalSeparator", decimal_separator)
         + field_str("DateFormat", date_format)
         + field_char("DateSeparator", date_separator)
     )
-    n_attr = 5
+    n_attr += 3
     if columns_required is not None:
         attrs += field_bool("ColumnsRequired", bool(columns_required))
-        n_attr = 6
+        n_attr += 1
     return (
         s("TBGImportTextFile")
         + bytes([n_attr])
@@ -1106,14 +1112,20 @@ def build_import_text_engine_xml(
     decimal_separator: str = ".",
     date_format: str = "dd.MM.yyyy",
     date_separator: str = ".",
+    delimiter: str | None = None,
     columns_required: bool | None = False,
     columns: list[dict[str, Any]] | None = None,
 ) -> str:
     cp = resolve_code_page(code_page)
     attrs = (
         f'xsi:type="TBGImportTextFile" FileName={quoteattr(file_name)} '
-        f'CodePage="{cp}" DecimalSeparator={quoteattr(decimal_separator)} '
-        f'DateFormat={quoteattr(date_format)} DateSeparator={quoteattr(date_separator)}'
+        f'CodePage="{cp}"'
+    )
+    if delimiter is not None:
+        attrs += f" DelimiterChar={quoteattr(delimiter)}"
+    attrs += (
+        f" DecimalSeparator={quoteattr(decimal_separator)} "
+        f"DateFormat={quoteattr(date_format)} DateSeparator={quoteattr(date_separator)}"
     )
     if columns_required is not None:
         attrs += f' ColumnsRequired="{"true" if columns_required else "false"}"'
@@ -1158,6 +1170,7 @@ def inject_import_text_blob(node_blob: bytes, settings: dict[str, Any], *, file_
         decimal_separator=sdict.get("decimal_separator", "."),
         date_format=sdict.get("date_format", "dd.MM.yyyy"),
         date_separator=sdict.get("date_separator", "."),
+        delimiter=sdict.get("delimiter"),
         columns_required=sdict.get("columns_required", False),
         columns=sdict.get("columns"),
     )
@@ -1184,6 +1197,7 @@ def inject_import_text_xml(node_xml: str, settings: dict[str, Any], *, file_name
         decimal_separator=sdict.get("decimal_separator", "."),
         date_format=sdict.get("date_format", "dd.MM.yyyy"),
         date_separator=sdict.get("date_separator", "."),
+        delimiter=sdict.get("delimiter"),
         columns_required=sdict.get("columns_required", False),
         columns=sdict.get("columns"),
     )
@@ -1234,13 +1248,20 @@ def apply_engine_settings(
     import_settings: dict[str, Any] | None = None,
     import_component: str | None = None,
     file_name: str | None = None,
+    component: str | None = None,
+    engine_settings: dict[str, Any] | None = None,
 ) -> tuple[bytes, str]:
     if filter_items is not None:
         blob = inject_filter_blob(blob, filter_items)
         xml = inject_filter_xml(xml, filter_items)
     if expressions is not None:
-        blob = inject_expressions_blob(blob, expressions)
-        xml = inject_expressions_xml(xml, expressions)
+        if component == "calc_variables":
+            from .scenario_settings import inject_variable_expressions
+
+            blob, xml = inject_variable_expressions(blob, xml, expressions)
+        else:
+            blob = inject_expressions_blob(blob, expressions)
+            xml = inject_expressions_xml(xml, expressions)
     if sort_columns is not None:
         blob = inject_sorting_blob(blob, sort_columns)
         xml = inject_sorting_xml(xml, sort_columns)
@@ -1263,4 +1284,10 @@ def apply_engine_settings(
             xml = inject_import_excel_xml(xml, import_settings, file_name=fn)
         else:
             raise ValueError(f"import_settings not supported for {comp}")
+    if engine_settings:
+        from .scenario_settings import apply_model_settings
+
+        if not component:
+            raise ValueError("engine_settings requires component")
+        blob, xml = apply_model_settings(blob, xml, component, engine_settings)
     return blob, xml

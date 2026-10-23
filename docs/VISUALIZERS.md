@@ -10,7 +10,10 @@
 
 1. Собрать сценарий: `create_package` → `add_node` → `configure_node` → `link_nodes`.
 2. Повесить визуализаторы: `list_visualizers` → `add_visualizer` (пока virgin).
-3. `configure_visualizer` — колонки, фильтр, сортировка, куб, статистика, серии, качество.
+3. `configure_visualizer` — колонки, фильтр, сортировка, куб, статистика, серии, качество,
+   профили кластеров (`histogram_scaling`, `indicator`, тепловая карта, фильтры),
+   статистика (`show_histogram`, `statistics_in_rows`), ROC (стандартный набор графиков)
+   и отчёты линейной/логистической регрессии.
 4. `save_package` → `.lgp` уже с настроенными видами (повторный save их сохраняет).
 5. `audit_visualizers` — пустые виды, чужие имена полей, нет флагов дубликатов.
 

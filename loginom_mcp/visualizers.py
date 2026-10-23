@@ -62,6 +62,11 @@ class VisualizerInfo:
     group: str  # tabular | special
     # components that expose this visualizer beyond the default tabular set
     extra_for: tuple[str, ...] = ()
+    # dataset = DataSource socket; model = Component socket (regression reports)
+    socket_kind: str = "dataset"
+    input_guid: str = "9dc72a3f-56bf-3bfc-84ec-f979daf4da6b"
+    input_name: str = "DataSource"
+    input_title: str = "Набор данных"
 
 
 # Package VendorGuids = first GUID of each Invoker pair (iface GUID is +72 bytes).
@@ -125,6 +130,30 @@ VISUALIZERS: dict[str, VisualizerInfo] = {
         "TBGCoarseClassesView",
         "special",
         extra_for=("final_classes",),
+    ),
+    "lin_regress_report": VisualizerInfo(
+        "lin_regress_report",
+        "Отчет по регрессии",
+        "3f113f5e-420c-431f-ad16-43ee015f2af9",
+        "TBGLinRegressReport",
+        "special",
+        extra_for=("lin_regression",),
+        socket_kind="model",
+        input_guid="ff1a6c68-78bc-3733-8212-65348b401a95",
+        input_name="Component",
+        input_title="Компонент",
+    ),
+    "log_regress_report": VisualizerInfo(
+        "log_regress_report",
+        "Отчет по регрессии",
+        "fc5bc69a-713e-4267-be4a-fc50954a857c",
+        "TBGLogRegressReport",
+        "special",
+        extra_for=("log_regression",),
+        socket_kind="model",
+        input_guid="ff1a6c68-78bc-3733-8212-65348b401a95",
+        input_name="Component",
+        input_title="Компонент",
     ),
     "data_tree": VisualizerInfo(
         "data_tree",
@@ -226,7 +255,8 @@ def preferred_source_port(visualizer: str) -> str:
     ``duplicates_view`` must link to the node's Component service port
     (``e98be5ba-…``), not DataSource — matching Loginom 7.4 ModelViews.
     """
-    if visualizer == "duplicates_view":
+    info = VISUALIZERS[visualizer]
+    if visualizer == "duplicates_view" or info.socket_kind == "model":
         return "component"
     return "data"
 
@@ -299,9 +329,13 @@ def _engine_xml(info: VisualizerInfo) -> str:
             "</Engine>"
         )
     if info.key == "cluster_profiles":
-        return '<Engine xsi:type="TBGClusterProfilesView"/>'
+        return '<Engine xsi:type="TBGClusterProfilesView"></Engine>'
     if info.key == "roc":
-        return '<Engine xsi:type="TBGROCView"/>'
+        return '<Engine xsi:type="TBGROCView"></Engine>'
+    if info.key in ("lin_regress_report", "log_regress_report"):
+        from .scenario_settings import regress_report_engine_xml
+
+        return regress_report_engine_xml(info.engine)
     if info.key == "coarse_classes":
         return '<Engine xsi:type="TBGCoarseClassesView"/>'
     if info.key == "data_tree":
@@ -317,9 +351,22 @@ def visualizer_xml(
     info = VISUALIZERS[visualizer]
     dn = escape(display_name or info.title)
     eng = _engine_xml(info)
+    if info.socket_kind == "model":
+        socket_xml = (
+            '<Socket xsi:type="TBGModelInputSocket">'
+            "<Constraints/>"
+            "</Socket>"
+        )
+    else:
+        socket_xml = (
+            '<Socket xsi:type="TBGTuneDataSourceSocket">'
+            "<Constraints/>"
+            '<DataSource SyncThroughColumns="true"><ColumnDefs/></DataSource>'
+            "</Socket>"
+        )
     return f"""\t\t\t<Item Guid="{view_guid}" DisplayName="{dn}" VendorGuid="{info.vendor}">
 \t\t\t\t<InputPorts>
-\t\t\t\t\t<Item Guid="{PORT_DS_IN}" Name="DataSource" DisplayName="Набор данных"/>
+\t\t\t\t\t<Item Guid="{info.input_guid}" Name="{info.input_name}" DisplayName="{escape(info.input_title)}"/>
 \t\t\t\t</InputPorts>
 \t\t\t\t<OutputPorts/>
 \t\t\t\t<ServiceInputPorts>
@@ -332,11 +379,8 @@ def visualizer_xml(
 \t\t\t\t</ServiceOutputPorts>
 \t\t\t\t<Component>
 \t\t\t\t\t<InputSockets>
-\t\t\t\t\t\t<Item Guid="{PORT_DS_IN}" Name="DataSource" DisplayName="Набор данных">
-\t\t\t\t\t\t\t<Socket xsi:type="TBGTuneDataSourceSocket">
-\t\t\t\t\t\t\t\t<Constraints/>
-\t\t\t\t\t\t\t\t<DataSource SyncThroughColumns="true"><ColumnDefs/></DataSource>
-\t\t\t\t\t\t\t</Socket>
+\t\t\t\t\t\t<Item Guid="{info.input_guid}" Name="{info.input_name}" DisplayName="{escape(info.input_title)}">
+\t\t\t\t\t\t\t{socket_xml}
 \t\t\t\t\t\t</Item>
 \t\t\t\t\t</InputSockets>
 \t\t\t\t\t{eng}
@@ -450,6 +494,10 @@ def _engine_blob(info: VisualizerInfo) -> bytes:
             + empty_list("Sorting")
             + _empty_obj("Options")
         )
+    if info.key in ("lin_regress_report", "log_regress_report"):
+        from .scenario_settings import regress_report_engine_blob
+
+        return regress_report_engine_blob(info.engine)
     # other specials: empty typed engine
     return eng + b"\x00" + b"\x00"
 
@@ -464,9 +512,10 @@ def build_visualizer_node(
     dn = display_name or info.title
     vendor = uuid.UUID(info.vendor)
 
+    in_guid = uuid.UUID(info.input_guid)
     input_ports = list_of_items(
         "InputPorts",
-        [port_item(PORT_DS_IN, "DataSource", "Набор данных")],
+        [port_item(in_guid, info.input_name, info.input_title)],
     )
     output_ports = empty_list("OutputPorts")
     service_in = list_of_items(
@@ -482,27 +531,36 @@ def build_visualizer_node(
         ],
     )
 
-    ds_inner = (
-        s("DataSource")
-        + b"\x00\x01"
-        + field_bool("SyncThroughColumns", True)
-        + b"\x01"
-        + empty_list("ColumnDefs")
-    )
-    # Visualizer sockets are not Virgin (unlike workflow processors).
-    ds_socket = (
-        s("Socket")
-        + s("TBGTuneDataSourceSocket")
-        + b"\x00"  # 0 attrs
-        + b"\x02"
-        + empty_list("Constraints")
-        + ds_inner
-    )
+    if info.socket_kind == "model":
+        ds_socket = (
+            s("Socket")
+            + s("TBGModelInputSocket")
+            + b"\x00"
+            + b"\x01"
+            + empty_list("Constraints")
+        )
+    else:
+        ds_inner = (
+            s("DataSource")
+            + b"\x00\x01"
+            + field_bool("SyncThroughColumns", True)
+            + b"\x01"
+            + empty_list("ColumnDefs")
+        )
+        # Visualizer sockets are not Virgin (unlike workflow processors).
+        ds_socket = (
+            s("Socket")
+            + s("TBGTuneDataSourceSocket")
+            + b"\x00"  # 0 attrs
+            + b"\x02"
+            + empty_list("Constraints")
+            + ds_inner
+        )
     ds_item = (
         b"\x00\x03"
-        + field_guid("Guid", PORT_DS_IN)
-        + field_str("Name", "DataSource")
-        + field_str("DisplayName", "Набор данных")
+        + field_guid("Guid", in_guid)
+        + field_str("Name", info.input_name)
+        + field_str("DisplayName", info.input_title)
         + b"\x01"
         + ds_socket
     )

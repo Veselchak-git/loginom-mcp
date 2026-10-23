@@ -580,6 +580,12 @@ def skip_bgb_attr(raw: bytes, p: int) -> int:
         return p + 1
     if tag == 0x09:
         return p + 1
+    if tag == 0x04:
+        while raw[p] >= 128:
+            p += 1
+        return p + 1
+    if tag == 0x0A:
+        return p + 2
     if tag == 0x0B:
         return p + 16
     if tag == 0x00:
@@ -626,9 +632,10 @@ def find_engine_span(
     if i < 0:
         raise RuntimeError(f"Engine {engine_class} after {view_guid}")
     p = i + len(needle)
-    if raw[p] != 0:
-        raise RuntimeError(f"attr_count={raw[p]}")
+    attr_count = raw[p]
     p += 1
+    for _ in range(attr_count):
+        p = skip_bgb_attr(raw, p)
     child_count = raw[p]
     p += 1
     for _ in range(child_count):
@@ -958,10 +965,30 @@ def _id_column(index: int, hidden: bool) -> tuple[str, bytes]:
     return xml, blob
 
 
-def statistics_xml(columns: list[dict]) -> str:
+def _stat_flags(settings: dict | None) -> tuple[str, bytes, int]:
+    settings = settings or {}
+    bits = []
+    attrs = b""
+    count = 0
+    for key, xml_name in (
+        ("show_histogram", "ShowHistogram"),
+        ("statistics_in_rows", "StatisticsInRows"),
+    ):
+        if key not in settings:
+            continue
+        flag = bool(settings[key])
+        bits.append(f'{xml_name}="{"true" if flag else "false"}"')
+        attrs += field_bool(xml_name, flag)
+        count += 1
+    extra = (" " + " ".join(bits)) if bits else ""
+    return extra, attrs, count
+
+
+def statistics_xml(columns: list[dict], settings: dict | None = None) -> str:
     col_xml, info_xml, ind_xml, hist_xml = _stat_xml_parts(columns)
+    extra, _, _ = _stat_flags(settings)
     return (
-        '<Engine xsi:type="TBGStatView">'
+        f'<Engine xsi:type="TBGStatView"{extra}>'
         f"<StatViewColumns>{col_xml}</StatViewColumns>"
         "<StatIndicatorColumnConfig/>"
         f"<ColumnInfosConfig>{info_xml}</ColumnInfosConfig>"
@@ -971,7 +998,7 @@ def statistics_xml(columns: list[dict]) -> str:
     )
 
 
-def statistics_blob(columns: list[dict]) -> bytes:
+def statistics_blob(columns: list[dict], settings: dict | None = None) -> bytes:
     cols = []
     for spec in columns:
         _, blob = _stat_column(spec)
@@ -979,10 +1006,13 @@ def statistics_blob(columns: list[dict]) -> bytes:
     infos = [_id_column(i, False)[1] for i in STAT_INFO_IDS]
     indicators = [_id_column(i, i in STAT_INDICATOR_HIDDEN)[1] for i in range(17)]
     histograms = [_id_column(i, i in STAT_HISTOGRAM_HIDDEN)[1] for i in range(6)]
+    _, attrs, count = _stat_flags(settings)
     return (
         s("Engine")
         + s("TBGStatView")
-        + b"\x00\x05"
+        + bytes([count])
+        + attrs
+        + b"\x05"
         + list_of_items("StatViewColumns", cols)
         + _empty_obj("StatIndicatorColumnConfig")
         + list_of_items("ColumnInfosConfig", infos)
@@ -1059,8 +1089,13 @@ def cube_job(
     )
 
 
-def statistics_job(guid: str, columns: list[dict]) -> Job:
-    return (guid, "TBGStatView", statistics_xml(columns), statistics_blob(columns))
+def statistics_job(guid: str, columns: list[dict], settings: dict | None = None) -> Job:
+    return (
+        guid,
+        "TBGStatView",
+        statistics_xml(columns, settings),
+        statistics_blob(columns, settings),
+    )
 
 
 def quality_job(guid: str) -> Job:
