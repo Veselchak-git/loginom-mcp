@@ -34,6 +34,7 @@ Do **not** reinvent these. They live in `server.py` → `package_session.py`.
 | `rename_node` | Rename workflow node or visualizer DisplayName |
 | `get_package` | Dump current session (nodes, links, visualizers) |
 | `inspect_lgp` | Read an existing `.lgp` from disk (no session) |
+| `inspect_source_schema` | Read an import source (`.txt` / `.csv` / `.xlsx`) and report Name / DisplayName / DataType / DataKind as Loginom will expose them |
 | `save_package` | Write session → `.lgp` |
 | `verify_package` | ZIP/XML/BGB checks; optional Loginom UI on Windows |
 
@@ -45,8 +46,17 @@ engines), `vendor/viz_audit.py`, `tools/inspect_viz.py`, `tools/audit_viz.py`.
 
 **`configure_node` covers today:** columns / inputs / outputs / groups / values,
 `filter_items`, `expressions`, `sort_columns`, `ordered_sample`, `join_type` +
-`join_keys`, `import_settings` (text/excel). Many palette nodes can be *added*
-but have little or no dedicated engine configure beyond ColumnDefs.
+`join_keys`, `import_settings` (text/excel). `source_file` on an import reads the
+header, guesses types and copies the detected code page + delimiter into
+`import_settings`, so the text reader opens the file the same way
+`inspect_source_schema` did. Unknown filter/sort fields raise with the list of
+available names instead of writing a view that Loginom cannot bind. Many palette
+nodes can be *added* but have little or no dedicated engine configure beyond
+ColumnDefs.
+
+Data types flow down the graph at `save_package` time: a column whose type is
+still the `guess_type` default takes the upstream column's `DataType` /
+`DataKind` with the same Name, so `configure_node` before `link_nodes` is safe.
 
 ---
 
@@ -76,7 +86,8 @@ elbow, clustering, and regression scenarios: cluster count, Pearson
 correlation, linear-regression enter method, neural-net hidden layer / decay /
 epochs. `expressions` also fills the variable calculator. Trained model
 bodies (centers, coefficients, coarse-class limits) are left for Loginom to
-compute. A text import stores `delimiter` when it is set. Nodes can be placed
+compute. A text import stores `delimiter` when it is set, and `configure_node(source_file=...)`
+fills it (plus `code_page`) automatically. Nodes can be placed
 inside a submodel, and a loop can reference that submodel; publishing the
 submodel ports on its boundary is still missing.
 
@@ -84,29 +95,20 @@ submodel ports on its boundary is still missing.
 
 Implement **one** of these per PR. Highest value first.
 
-### 1. `inspect_source_schema` (or `peek_import_fields`)
+### 1. Stronger import → ColumnDefs binding helpers
 
-**Why:** Wrong field names (`Summ` vs `Summa_pokupki`, LGD internal vs Loginom
-DisplayName transliteration) cause «ошибка входного порта» on the first
-downstream nodes.
+**Why:** Same port-error class of bugs that `inspect_source_schema` fixed for
+the first hop. The builder now propagates types down the graph at
+`save_package`; a `sync_columns_from_upstream` tool could still help for graphs
+whose upstream is not an import (calculator → grouping → join).
 
-**Goal:** Given a path to `.lgd` / CSV / existing import node, return the field
-`Name` / `DisplayName` / `DataType` list as Loginom will expose them so
-`configure_node` can bind `InputColumnInfoName` correctly.
-
-### 2. Stronger import → ColumnDefs binding helpers
-
-**Why:** Same port-error class of bugs. May be part of (1) or a
-`sync_columns_from_upstream` tool / `configure_node` enhancement that copies
-types from the linked import metadata.
-
-### 3. Visualizer extras
+### 2. Visualizer extras
 
 - Special views still virgin: `coarse_classes`, `data_tree`.
   `cluster_profiles`, `roc`, and regression reports are configurable.
 - Quality socket `ColumnDefs` (which fields the quality view calculates).
 
-### 4. Deeper `configure_node` for under-configured components
+### 3. Deeper `configure_node` for under-configured components
 
 Many keys from `list_loginom_components` are virgin add only. Useful next
 engines (pick one per PR, mirror a real `.lgp`):
@@ -118,7 +120,7 @@ engines (pick one per PR, mirror a real `.lgp`):
 - Modeling nodes beyond the pre-training knobs already in `engine_settings`
   (trained centers, coefficients, coarse-class limits)
 
-### 5. Session / package UX (nice to have)
+### 4. Session / package UX (nice to have)
 
 - `remove_node` / `unlink_nodes` / `clear_package`
 - `configure_visualizer` already covers cube and statistics

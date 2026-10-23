@@ -1,2 +1,5 @@
 mcp>=1.2.0
 # Dev machine uses mcp 2.x (MCPServer). If you need FastMCP v1: pin mcp<2
+# inspect_source_schema reads .xlsx headers through openpyxl; without it the
+# tool still handles .txt/.csv and asks for explicit columns on Excel sources.
+openpyxl>=3.1

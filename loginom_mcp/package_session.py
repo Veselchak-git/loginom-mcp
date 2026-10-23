@@ -28,7 +28,11 @@ from .column_config import (  # noqa: E402
     specs_for_duplicates,
     specs_for_grouping,
 )
-from .source_schema import columns_for_import, inspect_source_schema as _inspect_source_schema  # noqa: E402
+from .source_schema import (  # noqa: E402
+    columns_for_import,
+    columns_from_schema,
+    inspect_source_schema as _inspect_source_schema,
+)
 from .loginom_ident import loginom_ident  # noqa: E402
 from .engine_config import (  # noqa: E402
     JOIN_TYPE_DISPLAY,
@@ -355,10 +359,15 @@ def inspect_source_schema(
     encoding: str | None = None,
     delimiter: str | None = None,
     sample_rows: int = 500,
+    sheet: int | str | None = 1,
 ) -> dict:
-    """Field list Loginom will expose for a .txt/.csv source (Name, DisplayName, types)."""
+    """Field list Loginom will expose for a .txt/.csv/.xlsx source (Name, DisplayName, types)."""
     return _inspect_source_schema(
-        path, encoding=encoding, delimiter=delimiter, sample_rows=sample_rows
+        path,
+        encoding=encoding,
+        delimiter=delimiter,
+        sample_rows=sample_rows,
+        sheet=sheet,
     )
 
 
@@ -373,6 +382,115 @@ def _resolve_source_path(session, src: str) -> Path:
     raise FileNotFoundError(
         f"source file not found: {src!r} (also tried {str(alt)!r})"
     )
+
+
+def _code_page_for_encoding(encoding: str) -> int | str:
+    """Map a detected encoding label to a Loginom code page."""
+    label = encoding.replace(" (BOM)", "").strip().lower()
+    mapping = {
+        "utf-8": 65001,
+        "utf8": 65001,
+        "cp1251": 1251,
+        "windows-1251": 1251,
+        "cp1252": 1252,
+        "windows-1252": 1252,
+        "ascii": 20127,
+        "cp866": 866,
+    }
+    return mapping.get(label, encoding)
+
+
+_SPECIAL_FIELDS = frozenset(
+    {"Duplicate", "DuplicateGroup", "Contradiction", "ContradictionGroup"}
+)
+
+
+def _node_output_schema(node) -> dict[str, tuple[str | None, str | None]]:
+    schema: dict[str, tuple[str | None, str | None]] = {}
+    for col in node.columns:
+        schema[col.name] = (col.data_type, col.data_kind)
+    for col in (node.import_settings or {}).get("columns") or []:
+        label = col.get("name") or col.get("Name")
+        if not label:
+            continue
+        schema[loginom_ident(label)] = (
+            col.get("data_type") or col.get("DataType"),
+            col.get("data_kind") or col.get("DataKind"),
+        )
+    for expr in node.expressions or []:
+        label = expr.get("name") or expr.get("Name")
+        if not label:
+            continue
+        schema[loginom_ident(label)] = (
+            expr.get("data_type") or expr.get("DataType"),
+            None,
+        )
+    return schema
+
+
+def _propagate_types(session) -> None:
+    """Carry import DataType/DataKind down the graph, whatever the call order.
+
+    ``configure_node`` may run before ``link_nodes``, so a node cannot always
+    see its upstream at configure time. At save time the links do exist: any
+    column whose type is still the guess for its label takes the type of the
+    upstream column with the same Name.
+    """
+    from .column_config import guess_type
+
+    by_id = {node.id: node for node in session.nodes}
+    donors_of: dict[str, list[str]] = {}
+    for link in session.links:
+        donors_of.setdefault(link.target_node, []).append(link.source_node)
+
+    for _ in range(len(session.nodes) + 1):
+        changed = False
+        for node in session.nodes:
+            donors: dict[str, tuple[str | None, str | None]] = {}
+            for up_id in donors_of.get(node.id, []):
+                for name, types in _node_output_schema(by_id[up_id]).items():
+                    donors.setdefault(name, types)
+            if not donors:
+                continue
+            for col in node.columns:
+                dtype, dkind = donors.get(col.name, (None, None))
+                guessed, _ = guess_type(col.display_name or col.name)
+                if dtype and col.data_type == guessed and col.data_type != dtype:
+                    col.data_type = dtype
+                    if dkind:
+                        col.data_kind = dkind
+                    changed = True
+        if not changed:
+            break
+
+
+def _check_bound_fields(session, node) -> None:
+    """Fail loudly when a filter/sort refers to a field the node cannot see."""
+    if not node.filter_items and not node.sort_columns:
+        return
+    lookup = _session_column_index(node.id)
+    if not lookup:
+        return
+    for item in node.filter_items or []:
+        if not isinstance(item, dict):
+            continue
+        label = item.get("name")
+        if not label or label in _SPECIAL_FIELDS:
+            continue
+        if _resolve_field(label, lookup) is None:
+            raise KeyError(
+                f"filter field {label!r} is not on node {node.display_name!r}; "
+                f"{_known_hint(lookup)}"
+            )
+    for item in node.sort_columns or []:
+        label = item if isinstance(item, str) else (item or {}).get("name")
+        if not label or label in _SPECIAL_FIELDS:
+            continue
+        if _resolve_field(label, lookup) is None:
+            raise KeyError(
+                f"sort field {label!r} is not on node {node.display_name!r}; "
+                f"{_known_hint(lookup)}"
+            )
 
 
 def _upstream_import_columns(session, node_id: str) -> dict[str, tuple[str | None, str | None]]:
@@ -519,11 +637,18 @@ def configure_node(
                     spec.display_name = c.get("display_name") or c.get("displayName")
                 specs.append(spec)
     elif n.component in ("import_text", "import_excel") and (source_file or all_as_input):
-        # Read the source header/types the way Loginom will expose them.
+        # Read the source the way Loginom will expose it: names, types and,
+        # for text files, the code page and delimiter actually detected.
         src = source_file or n.file_name
-        col_dicts = columns_for_import(_resolve_source_path(s, src))
+        resolved = _resolve_source_path(s, src)
+        schema = _inspect_source_schema(resolved)
         settings = dict(n.import_settings or {})
-        settings["columns"] = col_dicts
+        settings.setdefault("columns", columns_from_schema(schema))
+        if n.component == "import_text":
+            if schema.get("encoding") and "code_page" not in settings:
+                settings["code_page"] = _code_page_for_encoding(schema["encoding"])
+            if schema.get("delimiter") and "delimiter" not in settings:
+                settings["delimiter"] = schema["delimiter"]
         n.import_settings = settings
         specs = list(n.columns)
         touched_columns = False
@@ -655,11 +780,11 @@ def configure_node(
         and engine_settings is None
         and not (
             n.component in ("import_text", "import_excel")
-            and columns is not None
+            and (columns is not None or source_file is not None)
         )
     ):
         raise ValueError(
-            "nothing to configure: pass columns/inputs/groups or "
+            "nothing to configure: pass columns/inputs/groups/source_file or "
             "filter_items/expressions/sort_columns/ordered_sample/"
             "join_type/join_keys/import_settings/engine_settings"
         )
@@ -924,6 +1049,7 @@ def inspect_lgp(path: str) -> dict:
                 import_info = {
                     "file_name": engine_el.get("FileName"),
                     "code_page": engine_el.get("CodePage"),
+                    "delimiter": engine_el.get("DelimiterChar"),
                     "decimal_separator": engine_el.get("DecimalSeparator"),
                     "date_format": engine_el.get("DateFormat"),
                     "date_separator": engine_el.get("DateSeparator"),
@@ -1007,18 +1133,38 @@ def _index_add(
     """
     if not name:
         return
+    # The value tied to a view/port is Loginom's Name, which is always ASCII:
+    # a caller that passes the Cyrillic header as `name` must still get
+    # Name="Kolichestvo", not Name="Количество".
+    ident = name if name.isascii() else loginom_ident(name)
     display = display or name
     dtype = data_type or "dtString"
-    index.setdefault(name, (name, display, dtype))
-    index.setdefault(display, (name, display, dtype))
+    index.setdefault(name, (ident, display, dtype))
+    index.setdefault(ident, (ident, display, dtype))
+    index.setdefault(display, (ident, display, dtype))
 
 
-def _session_column_index(node_id: str) -> dict[str, tuple[str, str, str]]:
-    node = get_session().find_node(node_id)
+def _session_column_index(
+    node_id: str, _seen: set[str] | None = None
+) -> dict[str, tuple[str, str, str]]:
+    session = get_session()
+    node = session.find_node(node_id)
+    seen = set(_seen or ())
+    seen.add(node_id)
     index: dict[str, tuple[str, str, str]] = {}
+    import_columns = (node.import_settings or {}).get("columns") or []
+    if not node.columns and not import_columns:
+        # The node keeps no schema of its own (calculator, filter, sorting...):
+        # its dataset is inherited from the upstream node, so views and field
+        # lookups must resolve those fields too.
+        for link in session.links:
+            if link.target_node != node_id or link.source_node in seen:
+                continue
+            for value in _session_column_index(link.source_node, seen).values():
+                _index_add(index, *value)
     for col in node.columns:
         _index_add(index, col.name, col.display_name, col.data_type)
-    for col in (node.import_settings or {}).get("columns") or []:
+    for col in import_columns:
         name = col.get("name") or col.get("Name")
         _index_add(
             index,
@@ -1115,6 +1261,10 @@ def _normalize_filters(
             copy["name"] = known[0]
             copy.setdefault("display_name", known[1])
             copy.setdefault("data_type", known[2])
+        elif name and lookup and name not in _SPECIAL_FIELDS:
+            raise KeyError(
+                f"filter field {name!r} is not on the source node; {_known_hint(lookup)}"
+            )
         out.append(copy)
     return out
 
@@ -1128,10 +1278,18 @@ def _normalize_sort(
     for item in sort:
         if isinstance(item, str):
             known = _resolve_field(item, lookup) if lookup else None
+            if lookup and known is None and item not in _SPECIAL_FIELDS:
+                raise KeyError(
+                    f"sort field {item!r} is not on the source node; {_known_hint(lookup)}"
+                )
             out.append((known[0] if known else item, "sdAsc"))
         else:
             label = item["name"]
             known = _resolve_field(label, lookup) if lookup else None
+            if lookup and known is None and label not in _SPECIAL_FIELDS:
+                raise KeyError(
+                    f"sort field {label!r} is not on the source node; {_known_hint(lookup)}"
+                )
             out.append(
                 (known[0] if known else label, item.get("direction") or "sdAsc")
             )
@@ -1643,6 +1801,9 @@ def audit_visualizers(path: str) -> dict:
 
 def save_package() -> dict:
     s = get_session()
+    _propagate_types(s)
+    for node in s.nodes:
+        _check_bound_fields(s, node)
     staging = STAGING_ROOT / f"staging_mcp_{s.name}"
     if staging.exists():
         shutil.rmtree(staging)

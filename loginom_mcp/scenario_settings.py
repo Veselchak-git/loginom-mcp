@@ -379,9 +379,9 @@ def inject_variable_expressions(blob: bytes, xml: str, expressions: list[dict[st
         raise ValueError("virgin Expressions list not found")
     blob = blob.replace(virgin, filled, 1)
     xml_filled = variable_expressions_xml(expressions)
-    xml2, n = re.subn(r"<Expressions\s*/>", xml_filled, xml, count=1)
+    xml2, n = re.subn(r"<Expressions\s*/>", lambda _m: xml_filled, xml, count=1)
     if n != 1:
-        xml2, n = re.subn(r"<Expressions></Expressions>", xml_filled, xml, count=1)
+        xml2, n = re.subn(r"<Expressions></Expressions>", lambda _m: xml_filled, xml, count=1)
     if n != 1:
         raise ValueError("empty Expressions element not found")
     return blob, xml2
@@ -516,7 +516,7 @@ def nest_workflow(
     blob = blob[:at] + new + blob[at + len(old) :]
     xml2, n = re.subn(
         r"<Nodes\s*/>",
-        "<Nodes>\n" + "\n".join(node_xmls) + "\n</Nodes>",
+        lambda _m: "<Nodes>\n" + "\n".join(node_xmls) + "\n</Nodes>",
         xml,
         count=1,
     )
@@ -526,7 +526,7 @@ def nest_workflow(
     if link_xmls:
         xml, n = re.subn(
             r"<Links\s*/>",
-            "<Links>\n" + "\n".join(link_xmls) + "\n</Links>",
+            lambda _m: "<Links>\n" + "\n".join(link_xmls) + "\n</Links>",
             xml,
             count=1,
         )
@@ -633,7 +633,7 @@ def apply_loop_settings(
     )
     xml2, n = re.subn(
         r'<Component xsi:type="TBGLoopComponent"\s*/>',
-        filled,
+        lambda _m: filled,
         xml,
         count=1,
     )

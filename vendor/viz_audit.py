@@ -57,6 +57,18 @@ def _col_names(node: ET.Element) -> set[str]:
     return {n for n in names if n}
 
 
+def _col_labels(node: ET.Element) -> set[str]:
+    """DisplayNames of declared columns (view columns are stored by label)."""
+    labels: set[str] = set()
+    for el in node.iter():
+        if _local(el.tag) != "Item" or not el.get("DataType"):
+            continue
+        display = el.get("DisplayName")
+        if display:
+            labels.add(display)
+    return labels
+
+
 def audit_package(path: str | Path) -> dict:
     """Return per-view status and a flat issue list. ``ok`` is true when issues is empty."""
     lgp = Path(path)
@@ -82,6 +94,7 @@ def audit_package(path: str | Path) -> dict:
     # Downstream input schema, used when the source itself stores no ColumnDefs
     # (native import). Keyed by source workflow guid.
     downstream: dict[str, set[str]] = {}
+    downstream_labels: dict[str, set[str]] = {}
     if wf is not None:
         links = next((c for c in wf if _local(c.tag) == "Links"), None)
         if links is not None:
@@ -97,6 +110,9 @@ def audit_package(path: str | Path) -> dict:
                 cols = _col_names(nodes_by_guid[tgt_guid])
                 if cols:
                     downstream.setdefault(src_guid, set()).update(cols)
+                    downstream_labels.setdefault(src_guid, set()).update(
+                        _col_labels(nodes_by_guid[tgt_guid])
+                    )
 
     view_nodes = next((c for c in mv if _local(c.tag) == "Nodes"), None)
     view_links = next((c for c in mv if _local(c.tag) == "Links"), None)
@@ -132,15 +148,19 @@ def audit_package(path: str | Path) -> dict:
         src_node = nodes_by_guid.get(src_guid)
         src_name = ""
         schema: set[str] = set()
+        labels: set[str] = set()
         if src_node is not None:
             src_name = (src_node.get("DisplayName") or "").replace("\r\n", " / ")
             schema = _col_names(src_node)
+            labels = _col_labels(src_node)
             if len(schema) < 8:
                 wider = downstream.get(src_guid, set())
                 if len(wider) >= 8:
                     schema = wider
+                    labels = downstream_labels.get(src_guid, set())
             if len(schema) < 8:
                 schema = set()
+                labels = set()
         entry = {
             "guid": guid,
             "display_name": title,
@@ -190,7 +210,7 @@ def audit_package(path: str | Path) -> dict:
             if schema:
                 unknown = [
                     n for n in cols
-                    if n and n not in schema and n not in FLAG_NAMES
+                    if n and n not in schema and n not in labels and n not in FLAG_NAMES
                 ]
                 if unknown:
                     issues.append({
@@ -212,7 +232,9 @@ def audit_package(path: str | Path) -> dict:
                     "detail": "chart has no labels FieldName or Series",
                 })
             elif schema:
-                unknown = [n for n in fields if n not in schema]
+                unknown = [
+                    n for n in fields if n not in schema and n not in labels
+                ]
                 if unknown:
                     issues.append({
                         "code": "unknown_column",

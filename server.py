@@ -32,7 +32,11 @@ Dimensions / ViewColumns). configure_visualizer fills table/duplicates columns, 
 filters and sort, chart labels+series, cube dimensions/facts, statistics columns, \
 quality indicators, cluster profiles (indicator, heat map, filters), statistics \
 flags, ROC charts, and regression reports. import_settings.delimiter stores \
-the text-file field separator. \
+the text-file field separator. configure_node(source_file=...) reads the source \
+header and copies the detected code page, delimiter and column types; \
+inspect_source_schema(path) reports Name/DisplayName/DataType without writing. \
+Types from the import are inherited by downstream nodes at save_package time, \
+whatever the call order. \
 configure_node engine_settings covers cluster count, correlation type, \
 linear-regression method, neural-net training params, and a loop that \
 references a submodel. add_node parent places a node inside a submodel. \
@@ -42,7 +46,7 @@ XML and BIN together. A hand-patched \
 that config. Recipes: loginom://docs/visualizers.
 
 CONTRIBUTE — implemented tools are listed in README / docs/AGENTS.md. Missing tools \
-(start with inspect_source_schema): see docs/AGENTS.md \
+(visualizer socket ColumnDefs, coarse_classes / data_tree): see docs/AGENTS.md \
 «Missing tools» and loginom://docs/agents / loginom://docs/roadmap. Implement on \
 a feature branch, open a Pull Request; do not push to main. Follow docs/CONTRIBUTING.md \
 (loginom://docs/contributing). Never commit .staging/, course .lgp, datasets, \
@@ -65,8 +69,8 @@ _HINTS = {
         "get_package / inspect_source_schema to see what the node actually has."
     ),
     "configure_node": (
-        "For import_* pass source_file to read the header, or columns=[{name}]. "
-        "For ports pass columns for this node's input socket."
+        "For import_* pass source_file to read the header, code page and delimiter, "
+        "or columns=[{name}]. For ports pass columns for this node's input socket."
     ),
     "add_node": "Use list_loginom_components to check the component key.",
     "add_visualizer": (
@@ -509,18 +513,20 @@ def inspect_source_schema(
     encoding: str | None = None,
     delimiter: str | None = None,
     sample_rows: int = 500,
+    sheet: int | str | None = 1,
 ) -> str:
-    """Read an import source (.txt/.csv/.tsv) and report the fields Loginom will create.
+    """Read an import source (.txt/.csv/.tsv/.xlsx) and report the fields Loginom will create.
 
     Returns Name (transliterated identifier), DisplayName (original header),
     inferred DataType/DataKind, null counts and sample values. Use the labels in
     configure_node(columns=...) / inputs= / groups= and in configure_visualizer.
 
     Args:
-        path: Absolute or session-relative path to the text source.
+        path: Absolute or session-relative path to the source.
         encoding: utf-8, cp1251, ... (default: auto from BOM/UTF-8 fallback cp1251).
         delimiter: Column delimiter (default: auto — tab, ';' or ',').
         sample_rows: How many data rows to scan for types and nulls.
+        sheet: Sheet number (1-based) or name for .xlsx sources.
     """
     return _ok(
         api.inspect_source_schema(
@@ -528,6 +534,7 @@ def inspect_source_schema(
             encoding=encoding,
             delimiter=delimiter,
             sample_rows=sample_rows,
+            sheet=sheet,
         )
     )
 
