@@ -174,13 +174,26 @@ FRT_NULLARY = {
 FRT_BETWEEN_SET = {FRT_BETWEEN, FRT_NOT_BETWEEN}
 FRT_LIST_SET = {FRT_IN, FRT_NOT_IN}
 
-# Column DataType enum (Filter Item / Expression)
+# Column DataType enum (Filter Item / Expression); same ordinals as import
+# ColumnDefs, so a calculator can declare every type an import can produce.
+DT_BOOLEAN = 1
+DT_DATETIME = 2
 DT_FLOAT = 3
+DT_INTEGER = 4
 DT_STRING = 5
+DT_VARIANT = 6
 DT = {
+    "dtBoolean": DT_BOOLEAN,
+    "dtDateTime": DT_DATETIME,
     "dtFloat": DT_FLOAT,
+    "dtInteger": DT_INTEGER,
     "dtString": DT_STRING,
+    "dtVariant": DT_VARIANT,
+    "boolean": DT_BOOLEAN,
+    "datetime": DT_DATETIME,
     "float": DT_FLOAT,
+    "integer": DT_INTEGER,
+    "int": DT_INTEGER,
     "string": DT_STRING,
 }
 
@@ -523,7 +536,7 @@ def inject_filter_xml(node_xml: str, items: list[dict[str, Any]]) -> str:
         r"<Filter></Filter>",
     ]
     for pat in patterns:
-        new_xml, n = re.subn(pat, filled, node_xml, count=1)
+        new_xml, n = re.subn(pat, lambda _m: filled, node_xml, count=1)
         if n:
             return new_xml
     raise ValueError("empty Filter element not found in node XML")
@@ -585,7 +598,7 @@ def build_expressions_xml(expressions: list[dict[str, Any]]) -> str:
 def inject_expressions_xml(node_xml: str, expressions: list[dict[str, Any]]) -> str:
     filled = build_expressions_xml(expressions)
     for pat in (r"<Expressions\s*/>", r"<Expressions></Expressions>"):
-        new_xml, n = re.subn(pat, filled, node_xml, count=1)
+        new_xml, n = re.subn(pat, lambda _m: filled, node_xml, count=1)
         if n:
             return new_xml
     raise ValueError("empty Expressions element not found in node XML")
@@ -646,7 +659,7 @@ def build_sorting_xml(columns: list[str | dict[str, Any]]) -> str:
 def inject_sorting_xml(node_xml: str, columns: list[str | dict[str, Any]]) -> str:
     filled = build_sorting_xml(columns)
     for pat in (r"<SortingColumns\s*/>", r"<SortingColumns></SortingColumns>"):
-        new_xml, n = re.subn(pat, filled, node_xml, count=1)
+        new_xml, n = re.subn(pat, lambda _m: filled, node_xml, count=1)
         if n:
             return new_xml
     raise ValueError("empty SortingColumns element not found in node XML")
@@ -679,7 +692,7 @@ def inject_ordered_sample_xml(node_xml: str, ordered: bool = True) -> str:
         r'<Engine xsi:type="TBGElimOutlierEngine"></Engine>',
     ]
     for pat in patterns:
-        new_xml, n = re.subn(pat, filled, node_xml, count=1)
+        new_xml, n = re.subn(pat, lambda _m: filled, node_xml, count=1)
         if n:
             return new_xml
     raise ValueError("TBGElimOutlierEngine element not found in node XML")
@@ -860,13 +873,13 @@ def inject_join_xml(
         r'<Engine xsi:type="TBGJoinDataEngine" DisplayNamePrefix="Соединение"></Engine>',
     ]
     for pat in patterns:
-        new_xml, n = re.subn(pat, filled, node_xml, count=1)
+        new_xml, n = re.subn(pat, lambda _m: filled, node_xml, count=1)
         if n:
             return new_xml
     # already has JoinType — replace whole engine element
     new_xml, n = re.subn(
         r'<Engine xsi:type="TBGJoinDataEngine"[^>]*>.*?</Engine>',
-        filled,
+        lambda _m: filled,
         node_xml,
         count=1,
         flags=re.DOTALL,
@@ -1204,7 +1217,7 @@ def inject_import_text_xml(node_xml: str, settings: dict[str, Any], *, file_name
     new_xml, n = re.subn(
         r'<Engine xsi:type="TBGImportTextFile"[^>]*/>|'
         r'<Engine xsi:type="TBGImportTextFile"[^>]*>.*?</Engine>',
-        filled,
+        lambda _m: filled,
         node_xml,
         count=1,
         flags=re.DOTALL,
@@ -1225,7 +1238,7 @@ def inject_import_excel_xml(node_xml: str, settings: dict[str, Any], *, file_nam
     new_xml, n = re.subn(
         r'<Engine xsi:type="TBGImportExcelFileEngine"[^>]*/>|'
         r'<Engine xsi:type="TBGImportExcelFileEngine"[^>]*>.*?</Engine>',
-        filled,
+        lambda _m: filled,
         node_xml,
         count=1,
         flags=re.DOTALL,

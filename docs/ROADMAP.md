@@ -7,8 +7,7 @@ the list of **already implemented** MCP tools, see [AGENTS.md](AGENTS.md) in thi
 
 | Gap | Status | Notes |
 |-----|--------|--------|
-| `inspect_source_schema` | **Missing tool** | Field Name/DisplayName/DataType as Loginom exposes them (esp. `.lgd`) |
-| Import → ColumnDefs binding | **Partial** | `configure_node` exists; port errors when names/types mismatch upstream |
+| Import → ColumnDefs binding | **Partial** | `configure_node(source_file=...)` copies header, code page, delimiter and types; `save_package` propagates types downstream. Non-import upstreams still need explicit columns |
 
 ## Medium priority
 
@@ -31,7 +30,7 @@ MCP tools: `list_loginom_components`, `list_visualizers`, `create_package`,
 `add_node`, `configure_node`, `link_nodes`, `add_visualizer`,
 `configure_visualizer` (table / duplicates filters+sort, chart, cube, statistics,
 quality, cluster profiles, ROC, regression reports, session or saved `.lgp`), `audit_visualizers`, `rename_node`, `get_package`, `inspect_lgp`,
-`save_package`, `verify_package`.
+`inspect_source_schema` (text and `.xlsx`), `save_package`, `verify_package`.
 
 Libraries: virgin visualizers + `VISUALIZERS.md` + `vendor/viz_configure.py` +
 `tools/inspect_viz.py`.

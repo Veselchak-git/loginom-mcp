@@ -5,6 +5,7 @@ Entry point for MCP hosts — keep this file at the repository root.
 """
 from __future__ import annotations
 
+import functools
 import json
 import sys
 from pathlib import Path
@@ -31,7 +32,11 @@ Dimensions / ViewColumns). configure_visualizer fills table/duplicates columns, 
 filters and sort, chart labels+series, cube dimensions/facts, statistics columns, \
 quality indicators, cluster profiles (indicator, heat map, filters), statistics \
 flags, ROC charts, and regression reports. import_settings.delimiter stores \
-the text-file field separator. \
+the text-file field separator. configure_node(source_file=...) reads the source \
+header and copies the detected code page, delimiter and column types; \
+inspect_source_schema(path) reports Name/DisplayName/DataType without writing. \
+Types from the import are inherited by downstream nodes at save_package time, \
+whatever the call order. \
 configure_node engine_settings covers cluster count, correlation type, \
 linear-regression method, neural-net training params, and a loop that \
 references a submodel. add_node parent places a node inside a submodel. \
@@ -41,7 +46,7 @@ XML and BIN together. A hand-patched \
 that config. Recipes: loginom://docs/visualizers.
 
 CONTRIBUTE — implemented tools are listed in README / docs/AGENTS.md. Missing tools \
-(start with inspect_source_schema): see docs/AGENTS.md \
+(visualizer socket ColumnDefs, coarse_classes / data_tree): see docs/AGENTS.md \
 «Missing tools» and loginom://docs/agents / loginom://docs/roadmap. Implement on \
 a feature branch, open a Pull Request; do not push to main. Follow docs/CONTRIBUTING.md \
 (loginom://docs/contributing). Never commit .staging/, course .lgp, datasets, \
@@ -58,13 +63,62 @@ def _ok(data: dict | list) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2)
 
 
+_HINTS = {
+    "configure_visualizer": (
+        "Field names resolve by Name or DisplayName; inspect the source with "
+        "get_package / inspect_source_schema to see what the node actually has."
+    ),
+    "configure_node": (
+        "For import_* pass source_file to read the header, code page and delimiter, "
+        "or columns=[{name}]. For ports pass columns for this node's input socket."
+    ),
+    "add_node": "Use list_loginom_components to check the component key.",
+    "add_visualizer": (
+        "Use list_visualizers(component) for valid keys; quality is valid on tabular nodes."
+    ),
+    "link_nodes": (
+        "Check port names: import -> data, filter else-branch -> else, join -> main/joined."
+    ),
+    "save_package": "Call create_package first; the session lives in the server process.",
+    "verify_package": "Call save_package first.",
+}
+
+
+def _safe(fn):
+    """Turn an exception into a structured answer the agent can act on.
+
+    The MCP host renders a raised exception as «Error executing tool X» and drops
+    the message, so a wrong column name used to be indistinguishable from a bug.
+    """
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:  # noqa: BLE001 - report, do not kill the call
+            payload: dict = {
+                "ok": False,
+                "tool": fn.__name__,
+                "error_type": type(exc).__name__,
+                "error": str(exc) or type(exc).__name__,
+            }
+            hint = _HINTS.get(fn.__name__)
+            if hint:
+                payload["hint"] = hint
+            return _ok(payload)
+
+    return wrapper
+
+
 @mcp.tool()
+@_safe
 def list_loginom_components() -> str:
     """List Loginom components that this builder can generate (keys for add_node)."""
     return _ok(list_components())
 
 
 @mcp.tool()
+@_safe
 def list_visualizers(component: str | None = None) -> str:
     """List Loginom visualizers. Optionally filter by component key (e.g. sliding_window).
 
@@ -75,6 +129,7 @@ def list_visualizers(component: str | None = None) -> str:
 
 
 @mcp.tool()
+@_safe
 def create_package(
     name: str,
     output_dir: str | None = None,
@@ -91,6 +146,7 @@ def create_package(
 
 
 @mcp.tool()
+@_safe
 def add_node(
     component: str,
     display_name: str,
@@ -156,6 +212,7 @@ def roadmap_docs() -> str:
 
 
 @mcp.tool()
+@_safe
 def add_visualizer(
     node: str,
     visualizer: str,
@@ -188,6 +245,7 @@ def add_visualizer(
 
 
 @mcp.tool()
+@_safe
 def configure_visualizer(
     view: str,
     path: str | None = None,
@@ -263,6 +321,7 @@ def configure_visualizer(
 
 
 @mcp.tool()
+@_safe
 def audit_visualizers(path: str) -> str:
     """Check visualizers in a saved .lgp (no session).
 
@@ -277,6 +336,7 @@ def audit_visualizers(path: str) -> str:
 
 
 @mcp.tool()
+@_safe
 def rename_node(node: str, display_name: str) -> str:
     """Rename a node or visualizer on the canvas (DisplayName).
 
@@ -288,6 +348,7 @@ def rename_node(node: str, display_name: str) -> str:
 
 
 @mcp.tool()
+@_safe
 def configure_node(
     node: str,
     columns: list | None = None,
@@ -297,6 +358,7 @@ def configure_node(
     values: list | None = None,
     all_as_input: bool = False,
     source_file: str | None = None,
+    sheet: int | str | None = None,
     default_agg: str = "gdSum",
     filter_items: list | None = None,
     expressions: list | None = None,
@@ -337,7 +399,8 @@ def configure_node(
         groups: Grouping keys (utGroup).
         values: Measures — strings or {name, aggs: [gdSum, gdAvg, ...]}.
         all_as_input: Mark every column from source_file/upstream import as input.
-        source_file: Text file to read header from (relative to package dir OK).
+        source_file: Text or Excel file to read the header from (relative to package dir OK).
+        sheet: Excel sheet number (1-based) or sheet name. Stored as sheet_number.
         default_agg: Default aggregate for grouping values (gdSum).
         filter_items: [{name, relation?, value?, lower?, upper?, values?, concat?,
             data_type?, display_name?}]. relation accepts UI ops (=, <>, пустой,
@@ -366,6 +429,7 @@ def configure_node(
             values=values,
             all_as_input=all_as_input,
             source_file=source_file,
+            sheet=sheet,
             default_agg=default_agg,
             filter_items=filter_items,
             expressions=expressions,
@@ -380,6 +444,7 @@ def configure_node(
 
 
 @mcp.tool()
+@_safe
 def link_nodes(
     source_node: str,
     target_node: str,
@@ -405,12 +470,14 @@ def link_nodes(
 
 
 @mcp.tool()
+@_safe
 def get_package() -> str:
     """Show current package session: nodes, links, and visualizers."""
     return _ok(api.package_info())
 
 
 @mcp.tool()
+@_safe
 def inspect_lgp(path: str) -> str:
     """Read an existing .lgp from disk (no session required) and summarize nodes.
 
@@ -424,12 +491,14 @@ def inspect_lgp(path: str) -> str:
 
 
 @mcp.tool()
+@_safe
 def save_package() -> str:
     """Write the current session to a .lgp file under output_dir."""
     return _ok(api.save_package())
 
 
 @mcp.tool()
+@_safe
 def verify_package(open_ui: bool = True, close_after: bool = True) -> str:
     """Validate the last saved .lgp (structure + optional Loginom UI on Windows).
 
@@ -438,6 +507,39 @@ def verify_package(open_ui: bool = True, close_after: bool = True) -> str:
         close_after: Close Loginom after the check (when open_ui was used).
     """
     return _ok(api.verify_package(open_ui=open_ui, close_after=close_after))
+
+
+@mcp.tool()
+@_safe
+def inspect_source_schema(
+    path: str,
+    encoding: str | None = None,
+    delimiter: str | None = None,
+    sample_rows: int = 500,
+    sheet: int | str | None = 1,
+) -> str:
+    """Read an import source (.txt/.csv/.tsv/.xlsx) and report the fields Loginom will create.
+
+    Returns Name (transliterated identifier), DisplayName (original header),
+    inferred DataType/DataKind, null counts and sample values. Use the labels in
+    configure_node(columns=...) / inputs= / groups= and in configure_visualizer.
+
+    Args:
+        path: Absolute or session-relative path to the source.
+        encoding: utf-8, cp1251, ... (default: auto from BOM/UTF-8 fallback cp1251).
+        delimiter: Column delimiter (default: auto — tab, ';' or ',').
+        sample_rows: How many data rows to scan for types and nulls.
+        sheet: Sheet number (1-based) or name for .xlsx sources.
+    """
+    return _ok(
+        api.inspect_source_schema(
+            path,
+            encoding=encoding,
+            delimiter=delimiter,
+            sample_rows=sample_rows,
+            sheet=sheet,
+        )
+    )
 
 
 if __name__ == "__main__":
