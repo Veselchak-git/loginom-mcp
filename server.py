@@ -358,6 +358,7 @@ def configure_node(
     values: list | None = None,
     all_as_input: bool = False,
     source_file: str | None = None,
+    sheet: int | str | None = None,
     default_agg: str = "gdSum",
     filter_items: list | None = None,
     expressions: list | None = None,
@@ -398,7 +399,8 @@ def configure_node(
         groups: Grouping keys (utGroup).
         values: Measures — strings or {name, aggs: [gdSum, gdAvg, ...]}.
         all_as_input: Mark every column from source_file/upstream import as input.
-        source_file: Text file to read header from (relative to package dir OK).
+        source_file: Text or Excel file to read the header from (relative to package dir OK).
+        sheet: Excel sheet number (1-based) or sheet name. Stored as sheet_number.
         default_agg: Default aggregate for grouping values (gdSum).
         filter_items: [{name, relation?, value?, lower?, upper?, values?, concat?,
             data_type?, display_name?}]. relation accepts UI ops (=, <>, пустой,
@@ -427,6 +429,7 @@ def configure_node(
             values=values,
             all_as_input=all_as_input,
             source_file=source_file,
+            sheet=sheet,
             default_agg=default_agg,
             filter_items=filter_items,
             expressions=expressions,

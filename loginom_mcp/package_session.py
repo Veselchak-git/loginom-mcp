@@ -433,8 +433,8 @@ def _propagate_types(session) -> None:
 
     ``configure_node`` may run before ``link_nodes``, so a node cannot always
     see its upstream at configure time. At save time the links do exist: any
-    column whose type is still the guess for its label takes the type of the
-    upstream column with the same Name.
+    column still sitting on the name-based guess takes the upstream type and
+    kind, even when only the kind differs.
     """
     from .column_config import guess_type
 
@@ -454,11 +454,21 @@ def _propagate_types(session) -> None:
                 continue
             for col in node.columns:
                 dtype, dkind = donors.get(col.name, (None, None))
-                guessed, _ = guess_type(col.display_name or col.name)
-                if dtype and col.data_type == guessed and col.data_type != dtype:
+                if not dtype:
+                    continue
+                guessed_type, guessed_kind = guess_type(col.display_name or col.name)
+                # Leave a type the caller set on purpose. A column still sitting
+                # on the name-based guess takes both the upstream type and kind,
+                # including the case where only the kind differs (dates).
+                if col.data_type != guessed_type:
+                    continue
+                if col.data_type != dtype:
                     col.data_type = dtype
                     if dkind:
                         col.data_kind = dkind
+                    changed = True
+                elif dkind and col.data_kind == guessed_kind and col.data_kind != dkind:
+                    col.data_kind = dkind
                     changed = True
         if not changed:
             break
@@ -547,6 +557,7 @@ def configure_node(
     values: list | None = None,
     all_as_input: bool = False,
     source_file: str | None = None,
+    sheet: int | str | None = None,
     default_agg: str = "gdSum",
     filter_items: list[dict] | None = None,
     expressions: list[dict] | None = None,
@@ -570,7 +581,8 @@ def configure_node(
       join — join_type=\"left\"|\"inner\"|..., join_keys=[{\"left\":\"Tovar_Kod\",\"right\":\"Tovar_Kod\"}]
       import_text / import_excel — import_settings={file_name?, code_page?/encoding?,
         delimiter?, decimal_separator?, date_format?, date_separator?, sheet_number?, columns?}
-        Quote and skip_rows are not stored in .lgp.
+        source_file= reads that file; sheet= (number or name) selects an Excel sheet
+        and is stored as sheet_number. Quote and skip_rows are not stored in .lgp.
       calc_variables — expressions=[{name, expression, data_type?, display_name?}]
       cluster — engine_settings={n_clusters, auto_select?, rand_seed?}
       corr_analysis — engine_settings={corr_types: caPirson or a 16-bit mask}
@@ -641,7 +653,12 @@ def configure_node(
         # for text files, the code page and delimiter actually detected.
         src = source_file or n.file_name
         resolved = _resolve_source_path(s, src)
-        schema = _inspect_source_schema(resolved)
+        chosen_sheet = sheet
+        if chosen_sheet is None and import_settings:
+            chosen_sheet = import_settings.get("sheet", import_settings.get("sheet_number"))
+        schema = _inspect_source_schema(
+            resolved, sheet=1 if chosen_sheet is None else chosen_sheet
+        )
         settings = dict(n.import_settings or {})
         settings.setdefault("columns", columns_from_schema(schema))
         if n.component == "import_text":
@@ -649,6 +666,8 @@ def configure_node(
                 settings["code_page"] = _code_page_for_encoding(schema["encoding"])
             if schema.get("delimiter") and "delimiter" not in settings:
                 settings["delimiter"] = schema["delimiter"]
+        if n.component == "import_excel" and schema.get("sheet_number") is not None:
+            settings["sheet_number"] = schema["sheet_number"]
         n.import_settings = settings
         specs = list(n.columns)
         touched_columns = False

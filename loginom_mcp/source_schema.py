@@ -182,6 +182,7 @@ def read_excel_preview(
         "rows": body,
         "rows_sampled": len(body),
         "sheet": ws.title,
+        "sheet_number": wb.sheetnames.index(ws.title) + 1,
     }
 
 
@@ -262,11 +263,14 @@ def inspect_source_schema(
         "note": (
             "Types here are inferred from a sample; override with "
             "configure_node(columns=[...]). configure_node(source_file=...) copies "
-            "code page and delimiter into import_settings for text sources."
+            "code page and delimiter into import_settings for text sources, and "
+            "sheet_number for Excel."
         ),
     }
     if preview.get("sheet"):
         result["sheet"] = preview["sheet"]
+    if preview.get("sheet_number") is not None:
+        result["sheet_number"] = preview["sheet_number"]
     return result
 
 
