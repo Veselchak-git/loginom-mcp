@@ -46,10 +46,10 @@ XML and BIN together. A hand-patched \
 that config. Recipes: loginom://docs/visualizers.
 
 CONTRIBUTE — implemented tools are listed in README / docs/AGENTS.md. Missing tools \
-(visualizer socket ColumnDefs, coarse_classes / data_tree): see docs/AGENTS.md \
-«Missing tools» and loginom://docs/agents / loginom://docs/roadmap. Sync with \
-origin/main first (fetch + rev-list ahead/behind), then implement on a feature \
-branch and open a Pull Request; do not push to main. Follow docs/CONTRIBUTING.md \
+(visualizer socket ColumnDefs, data_tree): see docs/AGENTS.md «Missing tools» \
+and loginom://docs/agents / loginom://docs/roadmap. Sync with origin/main first \
+(fetch + rev-list ahead/behind), then implement on a feature branch and open a \
+Pull Request; do not push to main. Follow docs/CONTRIBUTING.md \
 (loginom://docs/contributing). Never commit .staging/, course .lgp, datasets, \
 secrets, or personal absolute paths.
 """
@@ -355,6 +355,7 @@ def configure_node(
     columns: list | None = None,
     inputs: list[str] | None = None,
     outputs: list[str] | None = None,
+    unused: list[str] | None = None,
     groups: list[str] | None = None,
     values: list | None = None,
     all_as_input: bool = False,
@@ -388,6 +389,8 @@ def configure_node(
         nn_regress/nn_classify {hidden_layers?, decay?, max_epochs?, rand_seed?}
       loop {reference, loop_kind?: lkRepeat, append_iteration_identifiers?,
         condition: {name, socket, value?}, mappings: [{left, left_socket, right, right_socket}]}
+      final_classes {event_value?, min_class_rate?, max_class_count?} — Params on
+        TBGCoarseClassesTuneColumnDefExtension (not the engine body)
 
     expressions also configure calc_variables (variable formulas, not column formulas).
 
@@ -395,8 +398,11 @@ def configure_node(
         node: node_id, display_name, or guid.
         columns: Explicit list of {name, usage, data_type?, aggs?, order?}.
             For import_*: {name, data_type?} → Engine ColumnDefs (usage defaults to active).
-        inputs: Column names as input/active (duplicates: utActive).
-        outputs: Column names as output/predicted (duplicates: utPredicted).
+            Usage aliases: input/active, output/predicted/target, unused.
+        inputs: Column names as input/active (duplicates: utActive; final_classes: cpInput).
+        outputs: Column names as output/predicted (duplicates: utPredicted;
+            final_classes: exactly one target → cpTarget).
+        unused: final_classes only — id / ignored columns (ColumnPurpose=cpUnused).
         groups: Grouping keys (utGroup).
         values: Measures — strings or {name, aggs: [gdSum, gdAvg, ...]}.
         all_as_input: Mark every column from source_file/upstream import as input.
@@ -426,6 +432,7 @@ def configure_node(
             columns=columns,
             inputs=inputs,
             outputs=outputs,
+            unused=unused,
             groups=groups,
             values=values,
             all_as_input=all_as_input,
