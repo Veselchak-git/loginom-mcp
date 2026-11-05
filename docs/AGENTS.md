@@ -12,7 +12,11 @@ fix a builder bug, or contribute upstream.
 2. **Never commit** `.staging/`, course homework `.lgp`, datasets, secrets, or
    personal absolute paths.
 3. **One PR = one concern.** Prefer a single missing tool or a focused bug fix.
-4. **Maintainer merges.** Always open a Pull Request / Merge Request for review;
+4. **Sync with `origin/main` before branching and before opening a PR.** Measure
+   lag with `git fetch` + `git rev-list --left-right --count HEAD...origin/main`;
+   do not open a PR while behind. See «Git + Pull Request protocol» below and
+   [CONTRIBUTING.md](CONTRIBUTING.md).
+5. **Maintainer merges.** Always open a Pull Request / Merge Request for review;
    do not push directly to `main` unless the user explicitly owns the repo and
    asks you to.
 
@@ -154,8 +158,34 @@ Resource: `loginom://docs/visualizers` (= `VISUALIZERS.md`).
 
 Run these in the **clone of this public repo** (not in a private course folder).
 
+### 0. Sync check (mandatory — do this first and again before the PR)
+
+Before creating a branch, and again **immediately before** `git push` /
+`gh pr create`, measure how far the clone lags behind upstream `main`. Opening a
+PR from a stale `main` causes avoidable merge conflicts for maintainers.
+
+```bash
+git fetch origin main
+git rev-list --left-right --count HEAD...origin/main
+# output: <ahead> <behind>
+# behind > 0  → you are missing commits from origin/main; update first
+```
+
+- If **behind > 0** on `main`: `git checkout main && git pull origin main`, then
+  branch (or rebase your feature branch onto `origin/main`).
+- If **behind > 0** on a feature branch: `git rebase origin/main` (or merge),
+  resolve conflicts, re-run smoke tests, then push
+  (`--force-with-lease` only after a rebase of an already-pushed branch).
+- Do **not** call `gh pr create` until behind is `0`.
+
+Details and a small decision table: [CONTRIBUTING.md](CONTRIBUTING.md)
+«Stay current with `main`».
+
+### 1. Branch → implement → PR
+
 ```bash
 git status
+git fetch origin main
 git checkout main
 git pull origin main
 git checkout -b feat/short-topic
@@ -170,6 +200,12 @@ feat: add configure_visualizer MCP tool
 Expose table/chart/quality configuration via viz_configure helpers.
 EOF
 )"
+
+# re-check lag before push / PR
+git fetch origin main
+git rev-list --left-right --count HEAD...origin/main
+# if behind > 0: git rebase origin/main  (then re-test)
+
 git push -u origin HEAD
 gh pr create --title "feat: add configure_visualizer MCP tool" --body "$(cat <<'EOF'
 ## Summary
@@ -177,6 +213,7 @@ gh pr create --title "feat: add configure_visualizer MCP tool" --body "$(cat <<'
 - Brief approach
 
 ## Test plan
+- [ ] Confirmed branch is not behind origin/main
 - [ ] `python -c "import server"`
 - [ ] Exercise the new tool / patch sample .lgp
 - [ ] `python tools/inspect_viz.py …` if visualizers
