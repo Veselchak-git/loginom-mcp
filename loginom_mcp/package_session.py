@@ -23,9 +23,11 @@ from .column_config import (  # noqa: E402
     _make_spec,
     inject_column_defs_blob,
     inject_column_defs_xml,
+    normalize_usage,
     read_text_header,
     specs_for_active,
     specs_for_duplicates,
+    specs_for_final_classes,
     specs_for_grouping,
 )
 from .source_schema import (  # noqa: E402
@@ -553,6 +555,7 @@ def configure_node(
     columns: list[dict] | None = None,
     inputs: list[str] | None = None,
     outputs: list[str] | None = None,
+    unused: list[str] | None = None,
     groups: list[str] | None = None,
     values: list | None = None,
     all_as_input: bool = False,
@@ -572,6 +575,8 @@ def configure_node(
 
     Shortcuts by component:
       duplicates — inputs/outputs or all_as_input=True (+ optional source_file)
+      final_classes — outputs=[target], inputs=[...], unused=[id columns];
+        writes TBGCoarseClassesTuneColumnDefExtension (cpTarget/cpInput/cpUnused)
       grouping — groups= [...], values= [\"Qty\"] or [{\"name\":\"Qty\",\"aggs\":[\"gdSum\"]}]
       outliers/filter/others — inputs= [...] as utActive
       filter — filter_items=[{name, relation?, value?, lower?, upper?, values?, ...}]
@@ -594,8 +599,10 @@ def configure_node(
       loop — engine_settings={reference, loop_kind?, append_iteration_identifiers?,
         condition: {name, socket, value?},
         mappings: [{left, left_socket, right, right_socket}]}
+      final_classes — engine_settings={event_value?, min_class_rate?, max_class_count?}
 
     Or pass columns=[{name, usage, data_type?, data_kind?, aggs?, order?}].
+    Usage aliases: input/active, output/predicted/target, unused.
     For import_* nodes, columns= without usage goes into Engine ColumnDefs via import_settings.
     """
     s = get_session()
@@ -621,16 +628,27 @@ def configure_node(
         else:
             specs = []
             for c in columns:
-                usage = c.get("usage") or c.get("UsageType")
-                if not usage:
+                usage_raw = c.get("usage") or c.get("UsageType")
+                if not usage_raw:
                     raise ValueError("columns[].usage required")
+                usage = normalize_usage(str(usage_raw))
                 aggs = list(c.get("aggs") or c.get("functions") or [])
                 label = c["name"]
                 origin = bool(c.get("origin_custom"))
                 if n.component == "duplicates" or usage == "utValue":
                     origin = True
                 ext = None
-                if (
+                coarse_purpose = c.get("coarse_purpose") or c.get("ColumnPurpose")
+                if n.component == "final_classes":
+                    ext = "coarse"
+                    if not coarse_purpose:
+                        if usage == "utPredicted":
+                            coarse_purpose = "cpTarget"
+                        elif usage == "utUnused":
+                            coarse_purpose = "cpUnused"
+                        else:
+                            coarse_purpose = "cpInput"
+                elif (
                     (usage in ("utGroup", "utValue") or aggs or c.get("order") is not None)
                     and n.component == "grouping"
                 ):
@@ -644,6 +662,22 @@ def configure_node(
                     group_order=c.get("order"),
                     data_type=c.get("data_type") or c.get("DataType"),
                     data_kind=c.get("data_kind") or c.get("DataKind"),
+                    coarse_purpose=coarse_purpose,
+                    event_value=int(
+                        c.get("event_value", (engine_settings or {}).get("event_value", 1))
+                    ),
+                    min_class_rate=int(
+                        c.get(
+                            "min_class_rate",
+                            (engine_settings or {}).get("min_class_rate", 5),
+                        )
+                    ),
+                    max_class_count=int(
+                        c.get(
+                            "max_class_count",
+                            (engine_settings or {}).get("max_class_count", 5),
+                        )
+                    ),
                 )
                 if c.get("display_name") or c.get("displayName"):
                     spec.display_name = c.get("display_name") or c.get("displayName")
@@ -691,6 +725,20 @@ def configure_node(
             inputs=inputs,
             outputs=outputs,
             all_as_input=all_as_input,
+        )
+        _apply_upstream_types(s, n, specs)
+    elif n.component == "final_classes" and (
+        inputs is not None or outputs is not None or unused is not None
+    ):
+        touched_columns = True
+        es = engine_settings or {}
+        specs = specs_for_final_classes(
+            inputs=inputs,
+            outputs=outputs,
+            unused=unused,
+            event_value=int(es.get("event_value", 1)),
+            min_class_rate=int(es.get("min_class_rate", 5)),
+            max_class_count=int(es.get("max_class_count", 5)),
         )
         _apply_upstream_types(s, n, specs)
     elif n.component == "grouping" and groups:
@@ -780,11 +828,15 @@ def configure_node(
             "nn_regress",
             "nn_classify",
             "loop",
+            "final_classes",
         ):
             raise ValueError(
                 "engine_settings is implemented for cluster, corr_analysis, "
-                "lin_regression, log_regression, nn_regress, nn_classify, loop"
+                "lin_regression, log_regression, nn_regress, nn_classify, "
+                "loop, final_classes"
             )
+        # final_classes settings only feed ColumnDef Params (event_value / rates);
+        # they are not written into TBGCoarseClassesEngine itself.
         n.engine_settings = engine_settings
 
     if (
@@ -1854,7 +1906,10 @@ def save_package() -> dict:
             or n.join_type is not None
             or n.join_keys is not None
             or n.import_settings is not None
-            or (n.engine_settings is not None and n.component != "loop")
+            or (
+                n.engine_settings is not None
+                and n.component not in ("loop", "final_classes")
+            )
         ):
             blob, xml = apply_engine_settings(
                 blob,
@@ -1869,7 +1924,13 @@ def save_package() -> dict:
                 import_component=n.component if n.import_settings else None,
                 file_name=n.file_name,
                 component=n.component,
-                engine_settings=None if n.component == "loop" else n.engine_settings,
+                # loop / final_classes consume engine_settings elsewhere
+                # (loop wiring; coarse ColumnDef Params already baked into columns).
+                engine_settings=(
+                    None
+                    if n.component in ("loop", "final_classes")
+                    else n.engine_settings
+                ),
             )
         if n.component == "loop" and n.engine_settings:
             from .scenario_settings import apply_loop_settings

@@ -30,9 +30,15 @@
 | `Unit_0/Unit.xml` | Читаемая разметка `ModelViews/Nodes` + `ModelViews/Links` |
 | `Unit_0/Unit.bin` | BGB-двойник; **обязателен** для Loginom |
 
-Связь: `Links` в `ModelViews` ведут от выходного порта узла сценария
+Связь: `Links` в `ModelViews` обычно ведут от выходного порта узла сценария
 (`Data` / `4ba0e2c2-…`) к входу визуализатора
 `DataSource` (`9dc72a3f-56bf-3bfc-84ec-f979daf4da6b`).
+
+Исключения с `socket_kind=model` (порт **Component** /
+`e98be5ba-…` → вход `Component` / `ff1a6c68-…`): `duplicates_view`,
+`coarse_classes`, отчёты регрессии. Для `coarse_classes` в Engine пишется
+`TBGCustomModelComponentEngine` (VendorGuid остаётся CoarseClassesView);
+WoE/IV появляются после выполнения узла «Конечные классы» в Loginom.
 
 VendorGuid (ключ → тип):
 

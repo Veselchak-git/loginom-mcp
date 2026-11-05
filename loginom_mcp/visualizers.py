@@ -123,13 +123,19 @@ VISUALIZERS: dict[str, VisualizerInfo] = {
             "nn_regress",
         ),
     ),
+    # Real packages attach this view to ComponentOutputPort with a model socket
+    # and TBGCustomModelComponentEngine (VendorGuid stays CoarseClassesView).
     "coarse_classes": VisualizerInfo(
         "coarse_classes",
         "Конечные классы",
         "d7361376-312d-484d-b2c4-11b371685f67",
-        "TBGCoarseClassesView",
+        "TBGCustomModelComponentEngine",
         "special",
         extra_for=("final_classes",),
+        socket_kind="model",
+        input_guid="ff1a6c68-78bc-3733-8212-65348b401a95",
+        input_name="Component",
+        input_title="Компонент",
     ),
     "lin_regress_report": VisualizerInfo(
         "lin_regress_report",
@@ -337,7 +343,8 @@ def _engine_xml(info: VisualizerInfo) -> str:
 
         return regress_report_engine_xml(info.engine)
     if info.key == "coarse_classes":
-        return '<Engine xsi:type="TBGCoarseClassesView"/>'
+        # Matches configured Loginom 7 packages (Component → CustomModel engine).
+        return '<Engine xsi:type="TBGCustomModelComponentEngine"/>'
     if info.key == "data_tree":
         return '<Engine xsi:type="TBGDataTreeView"/>'
     raise KeyError(info.key)

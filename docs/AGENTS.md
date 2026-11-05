@@ -50,13 +50,16 @@ engines), `vendor/viz_audit.py`, `tools/inspect_viz.py`, `tools/audit_viz.py`.
 
 **`configure_node` covers today:** columns / inputs / outputs / groups / values,
 `filter_items`, `expressions`, `sort_columns`, `ordered_sample`, `join_type` +
-`join_keys`, `import_settings` (text/excel). `source_file` on an import reads the
-header, guesses types and copies the detected code page + delimiter into
-`import_settings`, so the text reader opens the file the same way
-`inspect_source_schema` did. Unknown filter/sort fields raise with the list of
-available names instead of writing a view that Loginom cannot bind. Many palette
-nodes can be *added* but have little or no dedicated engine configure beyond
-ColumnDefs.
+`join_keys`, `import_settings` (text/excel), **`final_classes`** (`outputs` =
+target, `inputs`, `unused`, optional `engine_settings` event_value /
+min_class_rate / max_class_count → `TBGCoarseClassesTuneColumnDefExtension`).
+Usage aliases: `input`/`active`, `output`/`predicted`/`target`, `unused`.
+`source_file` on an import reads the header, guesses types and copies the
+detected code page + delimiter into `import_settings`, so the text reader opens
+the file the same way `inspect_source_schema` did. Unknown filter/sort fields
+raise with the list of available names instead of writing a view that Loginom
+cannot bind. Many palette nodes can be *added* but have little or no dedicated
+engine configure beyond ColumnDefs.
 
 Data types flow down the graph at `save_package` time: a column whose type is
 still the `guess_type` default takes the upstream column's `DataType` /
@@ -78,7 +81,10 @@ still the `guess_type` default takes the upstream column's `DataType` /
   flags, fields that are not on the linked node, quality engine shape.
 
 **Still missing on visualizers:** socket `ColumnDefs` for quality field
-selection, and special views `coarse_classes` and `data_tree`.
+selection, and special view `data_tree`.
+`coarse_classes` attaches via the **Component** port (`socket_kind=model`,
+`TBGCustomModelComponentEngine`) — WoE / IV appear after Loginom executes the
+node; there is no Series-style `configure_visualizer` for this view.
 `cluster_profiles` (scaling, indicator, heat map, filters), `roc`, and
 linear/logistic regression reports are configurable. Statistics can store
 `ShowHistogram` and `StatisticsInRows`. `Grouping` and `Options` on tables stay
@@ -88,12 +94,13 @@ lists are not encoded.
 `configure_node` `engine_settings` covers the pre-training knobs used in the
 elbow, clustering, and regression scenarios: cluster count, Pearson
 correlation, linear-regression enter method, neural-net hidden layer / decay /
-epochs. `expressions` also fills the variable calculator. Trained model
-bodies (centers, coefficients, coarse-class limits) are left for Loginom to
-compute. A text import stores `delimiter` when it is set, and `configure_node(source_file=...)`
-fills it (plus `code_page`) automatically. Nodes can be placed
-inside a submodel, and a loop can reference that submodel; publishing the
-submodel ports on its boundary is still missing.
+epochs; plus final_classes binning defaults (`event_value`, `min_class_rate`,
+`max_class_count`). `expressions` also fills the variable calculator. Trained
+model bodies (centers, coefficients, coarse-class bin limits after run) are left
+for Loginom to compute. A text import stores `delimiter` when it is set, and
+`configure_node(source_file=...)` fills it (plus `code_page`) automatically.
+Nodes can be placed inside a submodel, and a loop can reference that submodel;
+publishing the submodel ports on its boundary is still missing.
 
 ## Missing tools — start here
 
@@ -108,7 +115,8 @@ whose upstream is not an import (calculator → grouping → join).
 
 ### 2. Visualizer extras
 
-- Special views still virgin: `coarse_classes`, `data_tree`.
+- Special view still virgin: `data_tree`.
+  `coarse_classes` attachment + `final_classes` ColumnDefs are done;
   `cluster_profiles`, `roc`, and regression reports are configurable.
 - Quality socket `ColumnDefs` (which fields the quality view calculates).
 
@@ -122,7 +130,7 @@ engines (pick one per PR, mirror a real `.lgp`):
 - `export_*` settings
 - `condition` / `reference_node`
 - Modeling nodes beyond the pre-training knobs already in `engine_settings`
-  (trained centers, coefficients, coarse-class limits)
+  (trained centers, coefficients, post-run coarse-class bin limits)
 
 ### 4. Session / package UX (nice to have)
 

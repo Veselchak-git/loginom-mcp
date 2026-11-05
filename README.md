@@ -230,7 +230,7 @@ python3 -m pip install -r requirements.txt
 | `list_visualizers` | Ключи визуализаторов для `add_visualizer` |
 | `create_package` | Новая in-memory сессия пакета |
 | `add_node` | Virgin-узел. `parent` кладёт его внутрь подмодели |
-| `configure_node` | ColumnDefs + filter / calculator / variable formulas / sort / join / import (кодировка и разделитель из `source_file`) / outliers / grouping / cluster count / correlation / regression method / neural-net params / loop condition and variable map |
+| `configure_node` | ColumnDefs + filter / calculator / variable formulas / sort / join / import (кодировка и разделитель из `source_file`) / outliers / grouping / **конечные классы** (`outputs`/`inputs`/`unused`) / cluster count / correlation / regression method / neural-net params / loop condition and variable map |
 | `link_nodes` | Связать порты (`data`, `else`, …) |
 | `add_visualizer` | Повесить **virgin**-визуализатор (пустые Series / ViewColumns / Dimensions) |
 | `configure_visualizer` | Таблица, дубликаты, диаграмма, куб, статистика (гистограмма, показатели по строкам), качество, профили кластеров (индикатор, фильтры), ROC, отчёты регрессии |
