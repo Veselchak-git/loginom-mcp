@@ -47,8 +47,9 @@ that config. Recipes: loginom://docs/visualizers.
 
 CONTRIBUTE — implemented tools are listed in README / docs/AGENTS.md. Missing tools \
 (visualizer socket ColumnDefs, coarse_classes / data_tree): see docs/AGENTS.md \
-«Missing tools» and loginom://docs/agents / loginom://docs/roadmap. Implement on \
-a feature branch, open a Pull Request; do not push to main. Follow docs/CONTRIBUTING.md \
+«Missing tools» and loginom://docs/agents / loginom://docs/roadmap. Sync with \
+origin/main first (fetch + rev-list ahead/behind), then implement on a feature \
+branch and open a Pull Request; do not push to main. Follow docs/CONTRIBUTING.md \
 (loginom://docs/contributing). Never commit .staging/, course .lgp, datasets, \
 secrets, or personal absolute paths.
 """

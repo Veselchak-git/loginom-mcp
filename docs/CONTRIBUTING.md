@@ -7,26 +7,70 @@ pull requests / merge requests.
 ## Workflow (required)
 
 1. **Fork** the repository (or use a collaborator branch).
-2. Create a branch from `main`:
+2. **Sync with upstream `main` before you branch or open a PR** (see below).
+   Stale clones are the usual source of merge conflicts.
+3. Create a branch from an up-to-date `main`:
    ```bash
    git checkout -b feat/configure-visualizer
    ```
-3. Implement **one** focused change (one tool or one bugfix). Prefer items from
+4. Implement **one** focused change (one tool or one bug fix). Prefer items from
    [ROADMAP.md](ROADMAP.md).
-4. Smoke-test locally:
+5. Smoke-test locally:
    ```bash
    python -m pip install -r requirements.txt
    python -c "import server; print('import ok')"
    # if you touch visualizers:
    python tools/inspect_viz.py path/to/sample.lgp
    ```
-5. Commit with a clear message (`feat:`, `fix:`, `docs:`, `refactor:`).
-6. Push and open a **Pull Request** against `main`.
-7. Wait for maintainer review — do not merge your own PR unless you are a
+6. Commit with a clear message (`feat:`, `fix:`, `docs:`, `refactor:`).
+7. **Re-check that your branch is not behind `origin/main`**, then push and open
+   a **Pull Request** against `main`.
+8. Wait for maintainer review — do not merge your own PR unless you are a
    maintainer.
+
+### Stay current with `main` (required before every PR)
+
+Do this when you start work **and again immediately before** `git push` /
+`gh pr create`. AI agents contributing on behalf of someone else must run it
+first — do not open a PR from a clone that lags behind `main`.
+
+```bash
+git fetch origin main
+git rev-list --left-right --count HEAD...origin/main
+# left  = commits you have that origin/main does not
+# right = commits on origin/main that you are missing (behind)
+```
+
+| `left` `right` | Meaning | Action |
+|----------------|---------|--------|
+| `N 0` | Ahead only (or equal if `0 0`) | OK to push / open PR |
+| `0 M` (`M>0`) | Behind `main` | Update before PR (below) |
+| `N M` (both >0) | Diverged | Rebase or merge `main`, resolve conflicts, then PR |
+
+Update a feature branch that is behind:
+
+```bash
+git fetch origin main
+git checkout feat/your-topic
+git rebase origin/main
+# or: git merge origin/main
+# fix conflicts if any, then:
+git push -u origin HEAD
+# after rebase of an already-pushed branch:
+# git push --force-with-lease
+```
+
+Starting fresh from an outdated local `main`:
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b feat/your-topic
+```
 
 ### Pull request checklist
 
+- [ ] Local branch is **not behind** `origin/main` (`git fetch` + `rev-list` above)
 - [ ] Title describes the user-visible outcome
 - [ ] PR body: problem → approach → how to test
 - [ ] No secrets, no personal absolute paths, no course `.lgp` / `.staging` data
